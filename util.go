@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"regexp"
@@ -31,8 +32,22 @@ type metaInfo struct {
 	Sequence          uint64
 }
 
+var timeLocation *time.Location
+
+func init() {
+	tz := os.Getenv("TZ")
+	if tz == "" {
+		tz = "Europe/Berlin"
+	}
+	location, err := time.LoadLocation(tz)
+	if err != nil {
+		log.Panicf("Couldn't load timezone data for %s: %s\n", tz, err.Error())
+	}
+	timeLocation = location
+}
+
 func packInfo(clock clock.Clock, i uint64) []byte {
-	zClockTime := clock.Now().In(time.UTC)
+	zClockTime := clock.Now().In(timeLocation)
 	input := &metaInfo{
 		Tag:               metaInfoTag,
 		CompressionMethod: metaCompressionMethod,
@@ -99,7 +114,7 @@ func formatLine(severity logLevel, timeStamp time.Time, message string) []interf
 }
 
 func formatTime(timeStamp time.Time) string {
-	return timeStamp.In(time.UTC).Format(timeFormat)
+	return timeStamp.In(timeLocation).Format(timeFormat)
 }
 
 // HasContext is any object that reponds to the Context method.
@@ -111,7 +126,8 @@ type HasContext interface {
 // If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
 // Maximum line length is 2048 characters.
 func Log(c HasContext, severity logLevel, format string, args ...interface{}) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	request, ok := c.Context().Value(requestKey).(*request)
+	if ok {
 		request.log(severity, fmt.Sprintf(format, args...))
 	}
 }

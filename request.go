@@ -51,6 +51,8 @@ func (r *request) start() {
 }
 
 func (r *request) log(severity logLevel, line string) {
+	r.middleware.Logger.Println(line)
+
 	if r.logLinesBytesCount > maxBytesAllLines {
 		return
 	}
@@ -80,6 +82,11 @@ func (r *request) addDuration(key string, value time.Duration) {
 	}
 }
 
+func (r *request) finishWithPanic(recovered interface{}) {
+	r.log(FATAL, fmt.Sprintf("%#v", recovered))
+	r.finish(httpsnoop.Metrics{Code: 500})
+}
+
 func (r *request) finish(metrics httpsnoop.Metrics) {
 	r.endTime = r.middleware.Clock.Now()
 
@@ -92,7 +99,8 @@ func (r *request) finish(metrics httpsnoop.Metrics) {
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
-		log.Panicln(err)
+		r.middleware.Logger.Println(err)
+		return
 	}
 
 	r.middleware.sendMessage(buf)
@@ -109,7 +117,7 @@ type message struct {
 	RequestInfo map[string]interface{} `json:"request_info"`
 	StartedAt   string                 `json:"started_at"`
 	StartedMS   int64                  `json:"started_ms"`
-	Severity    int                    `json:"severity"`
+	Severity    logLevel               `json:"severity"`
 	UserID      int64                  `json:"user_id"`
 	Minute      int64                  `json:"minute"`
 
@@ -161,13 +169,26 @@ func (r *request) payloadMessage(code int, host string) *message {
 		ProcessID:   os.Getpid(),
 		RequestID:   r.uuid(),
 		RequestInfo: r.info(),
-		StartedAt:   r.startTime.In(time.UTC).Format(iso8601),
+		Severity:    r.severity(code),
+		StartedAt:   r.startTime.In(timeLocation).Format(time.RFC3339),
 		StartedMS:   r.startTime.UnixNano() / 1000000,
 		TotalTime:   durationBetween(r.startTime, r.endTime),
 	}
 	msg.setDurations(r.statDurations)
 	msg.setCounts(r.statCounts)
 	return msg
+}
+
+func (r *request) severity(code int) logLevel {
+	if code >= 1 && code < 400 {
+		return INFO
+	} else if code >= 400 && code < 500 {
+		return WARN
+	} else if code >= 500 {
+		return ERROR
+	}
+
+	return FATAL
 }
 
 func (r *request) info() map[string]interface{} {

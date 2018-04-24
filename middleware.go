@@ -23,7 +23,6 @@ import (
 const maxLineLength = 2048
 const maxBytesAllLines = 1024 * 1024
 const timeFormat = "2006-01-02T15:04:05.000000"
-const iso8601 = "2006-01-02T15:04:05+07:00"
 const lineTruncated = " ... [LINE TRUNCATED]"
 const linesTruncated = "... [LINES DROPPED]"
 
@@ -133,7 +132,6 @@ func (m *middleware) randomEndpoint() (*url.URL, error) {
 	}
 
 	rawURL := fmt.Sprintf("%s://%s:%s", protocol, ip.String(), port)
-	m.Logger.Printf("Using Logjam endpoint: %s\n", rawURL)
 	return url.Parse(rawURL)
 }
 
@@ -176,6 +174,14 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	r.request = req
 
 	r.start()
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.finishWithPanic(recovered)
+			panic(recovered)
+		}
+	}()
+
 	metrics := httpsnoop.CaptureMetrics(m.handler, res, req)
 	r.finish(metrics)
 }
@@ -198,6 +204,6 @@ func (m *middleware) sendMessage(msg []byte) {
 	)
 
 	if err != nil {
-		log.Panicln(err)
+		m.Logger.Println(err)
 	}
 }
