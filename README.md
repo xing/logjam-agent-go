@@ -1,6 +1,44 @@
 # logjam-go
-Small [Logjam](https://source.xing.com/architects/logjam_app) Go client implementation.
 
-This is WIP. The source code was taken from the [eRecruiting-Team API](https://source.xing.com/e-recruiting-api-team/api) project and all credits belong to the original developers!
+Please see the public repo at github.com/xing/logjam-go
 
 
+## How to use it
+Instal via `go get github.com/xing/logjam-go` and then inside your code create a middleware like this:
+
+```go
+func logjamMiddleware(next http.Handler) http.Handler {
+	return logjam.NewMiddleware(next, &logjam.Options{
+		AppName: "MyApp",
+		EnvName: "production",
+		Logger:  log.New(os.Stderr, "API", log.LstdFlags),
+	})
+}
+```
+
+Then register the middleware with your router like this:
+
+```go
+	r := mux.NewRouter()
+
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 50
+
+	server := &http.Server{
+		Addr:         ":" + *localPort,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		Handler:      r,
+	}
+
+    r.Use(logjamMiddleware)
+    ...
+```
+
+This example uses the Gorilla Mux package but it should also work with other router packages.
+
+You also need to set environment variable to point to the actual logjam broker instance:
+
+`export LOGJAM_BROKER=my-logjam-broker.host.name`
+
+## Hot to contribute?
+Please fork the repo and create a pull-request for us to merge.
