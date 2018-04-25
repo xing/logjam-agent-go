@@ -19,17 +19,8 @@ func logjamMiddleware(next http.Handler) http.Handler {
 Then register the middleware with your router like this:
 
 ```go
-	r := mux.NewRouter()
-
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 50
-
-	server := &http.Server{
-		Addr:         ":" + *localPort,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		Handler:      r,
-	}
-
+    r := mux.NewRouter()
+    ...
     r.Use(logjamMiddleware)
     ...
 ```
