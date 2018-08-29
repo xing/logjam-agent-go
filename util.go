@@ -106,7 +106,7 @@ func actionNameParts(method, path string) []string {
 	return parts
 }
 
-func formatLine(severity logLevel, timeStamp time.Time, message string) []interface{} {
+func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
 	if len(message) > maxLineLength {
 		message = message[0:maxLineLength-len(lineTruncated)] + lineTruncated
 	}
@@ -125,20 +125,40 @@ type HasContext interface {
 // Log takes a context to be able to collect all logs within the same request.
 // If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
 // Maximum line length is 2048 characters.
-func Log(c HasContext, severity logLevel, format string, args ...interface{}) {
-	request, ok := c.Context().Value(requestKey).(*request)
-	if ok {
+func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
+	if request, ok := c.Context().Value(requestKey).(*request); ok {
 		request.log(severity, fmt.Sprintf(format, args...))
 	}
 }
 
-// LogInfo takes a context to be able to collect all logs within the same request.
-// If you're using gin-gonic, please pass the (*gin.Context).Request
-// Maximum line length is 2048 characters.
+// LogInfo calls Log with DEBUG severity
+func LogDebug(c HasContext, format string, args ...interface{}) {
+	Log(c, DEBUG, format, args...)
+}
+
+// LogInfo calls Log with INFO severity
 func LogInfo(c HasContext, format string, args ...interface{}) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
-		request.log(INFO, fmt.Sprintf(format, args...))
-	}
+	Log(c, INFO, format, args...)
+}
+
+// LogWarn calls Log with WARN severity
+func LogWarn(c HasContext, format string, args ...interface{}) {
+	Log(c, WARN, format, args...)
+}
+
+// LogWarn calls Log with ERROR severity
+func LogError(c HasContext, format string, args ...interface{}) {
+	Log(c, ERROR, format, args...)
+}
+
+// LogWarn calls Log with FATAL severity
+func LogFatal(c HasContext, format string, args ...interface{}) {
+	Log(c, FATAL, format, args...)
+}
+
+// LogUnknown calls Log with UNKNOWN severity
+func LogUnknown(c HasContext, format string, args ...interface{}) {
+	Log(c, UNKNOWN, format, args...)
 }
 
 // Count behaves like AddCount with a value of 1

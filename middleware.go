@@ -32,16 +32,16 @@ const (
 	requestKey contextKey = iota
 )
 
-type logLevel int
+type LogLevel int
 
 // DEBUG log level
 const (
-	DEBUG   logLevel = iota
-	INFO    logLevel = iota
-	WARN    logLevel = iota
-	ERROR   logLevel = iota
-	FATAL   logLevel = iota
-	UNKNOWN logLevel = iota
+	DEBUG   LogLevel = iota
+	INFO    LogLevel = iota
+	WARN    LogLevel = iota
+	ERROR   LogLevel = iota
+	FATAL   LogLevel = iota
+	UNKNOWN LogLevel = iota
 )
 
 // The Options can be passed to NewMiddleware.

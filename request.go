@@ -50,7 +50,7 @@ func (r *request) start() {
 	header.Set("X-Logjam-Caller-Id", r.request.Header.Get("X-Logjam-Caller-Id"))
 }
 
-func (r *request) log(severity logLevel, line string) {
+func (r *request) log(severity LogLevel, line string) {
 	r.middleware.Logger.Println(line)
 
 	if r.logLinesBytesCount > maxBytesAllLines {
@@ -117,7 +117,7 @@ type message struct {
 	RequestInfo map[string]interface{} `json:"request_info"`
 	StartedAt   string                 `json:"started_at"`
 	StartedMS   int64                  `json:"started_ms"`
-	Severity    logLevel               `json:"severity"`
+	Severity    LogLevel               `json:"severity"`
 	UserID      int64                  `json:"user_id"`
 	Minute      int64                  `json:"minute"`
 
@@ -179,7 +179,7 @@ func (r *request) payloadMessage(code int, host string) *message {
 	return msg
 }
 
-func (r *request) severity(code int) logLevel {
+func (r *request) severity(code int) LogLevel {
 	if code >= 1 && code < 400 {
 		return INFO
 	} else if code >= 400 && code < 500 {
