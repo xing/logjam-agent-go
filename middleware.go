@@ -207,3 +207,22 @@ func (m *middleware) sendMessage(msg []byte) {
 		m.Logger.Println(err)
 	}
 }
+
+// SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing request.
+// call this before you call other XING APIs
+func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
+	ctx := hasContext.Context()
+	incoming, ok := ctx.Value(requestKey).(*http.Request)
+	if !ok {
+		return
+	}
+
+	for key, value := range incoming.Header {
+		if len(value) == 0 {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(key), "x-logjam") {
+			outgoing.Header.Set(key, value[0])
+		}
+	}
+}
