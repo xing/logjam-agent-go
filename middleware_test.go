@@ -1,6 +1,7 @@
 package logjam
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"math/rand"
@@ -322,6 +323,34 @@ func TestMiddleware(t *testing.T) {
 		So(line[0], ShouldEqual, FATAL) // severity
 		So(line[1], ShouldEqual, "2018-02-26T16:33:26.000000")
 		So(line[2], ShouldEqual, "Second Line")
+	})
+}
+
+func TestSetLogjamHeaders(t *testing.T) {
+	Convey("SetLogjamHeaders", t, func() {
+		incoming := httptest.NewRequest("GET", "/", nil)
+		incoming.Header.Set("X-Logjam-Test", "true")
+		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
+		outgoing := httptest.NewRequest("GET", "/", nil)
+		SetLogjamHeaders(incomingW, outgoing)
+		So(outgoing.Header.Get("X-Logjam-Test"), ShouldEqual, "true")
+	})
+
+	Convey("SetLogjamHeaders with header without any values", t, func() {
+		incoming := httptest.NewRequest("GET", "/", nil)
+		incoming.Header = http.Header{"foo": []string{}}
+		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
+		outgoing := httptest.NewRequest("GET", "/", nil)
+		SetLogjamHeaders(incomingW, outgoing)
+		So(outgoing.Header, ShouldBeEmpty)
+	})
+
+	Convey("SetLogjamHeaders without header", t, func() {
+		incoming := httptest.NewRequest("GET", "/", nil)
+		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
+		outgoing := httptest.NewRequest("GET", "/", nil)
+		SetLogjamHeaders(incomingW, outgoing)
+		So(outgoing.Header, ShouldBeEmpty)
 	})
 }
 

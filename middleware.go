@@ -32,16 +32,16 @@ const (
 	requestKey contextKey = iota
 )
 
-type logLevel int
+type LogLevel int
 
 // DEBUG log level
 const (
-	DEBUG   logLevel = iota
-	INFO    logLevel = iota
-	WARN    logLevel = iota
-	ERROR   logLevel = iota
-	FATAL   logLevel = iota
-	UNKNOWN logLevel = iota
+	DEBUG   LogLevel = iota
+	INFO    LogLevel = iota
+	WARN    LogLevel = iota
+	ERROR   LogLevel = iota
+	FATAL   LogLevel = iota
+	UNKNOWN LogLevel = iota
 )
 
 // The Options can be passed to NewMiddleware.
@@ -205,5 +205,24 @@ func (m *middleware) sendMessage(msg []byte) {
 
 	if err != nil {
 		m.Logger.Println(err)
+	}
+}
+
+// SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing request.
+// call this before you call other XING APIs
+func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
+	ctx := hasContext.Context()
+	incoming, ok := ctx.Value(requestKey).(*http.Request)
+	if !ok {
+		return
+	}
+
+	for key, value := range incoming.Header {
+		if len(value) == 0 {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(key), "x-logjam") {
+			outgoing.Header.Set(key, value[0])
+		}
 	}
 }
