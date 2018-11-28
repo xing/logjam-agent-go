@@ -243,6 +243,9 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 	ctx := hasContext.Context()
 
 	var incomingHeaders http.Header
+	if outgoing.Header == nil {
+		outgoing.Header = http.Header{}
+	}
 
 	switch incoming := ctx.Value(requestKey).(type) {
 	case *http.Request:
