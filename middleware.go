@@ -114,25 +114,26 @@ func (m *middleware) randomEndpoint() (*url.URL, error) {
 	matches := connectionSpec.FindStringSubmatch(endpoint)
 
 	protocol, host, port := matches[1], matches[2], matches[3]
-	if protocol == "" {
-		protocol = "tcp"
-	}
+	switch protocol {
+	case "", "tcp":
+		if host == "" {
+			return nil, fmt.Errorf("endpoint host can't be empty: %s", endpoint)
+		}
 
-	if host == "" {
-		return nil, fmt.Errorf("endpoint host can't be empty: %s", endpoint)
-	}
+		if port == "" {
+			port = "9604"
+		}
 
-	if port == "" {
-		port = "9604"
-	}
+		ip, err := ipv4for(host)
+		if err != nil {
+			return nil, err
+		}
 
-	ip, err := ipv4for(host)
-	if err != nil {
-		return nil, err
+		rawURL := fmt.Sprintf("%s://%s:%s", protocol, ip.String(), port)
+		return url.Parse(rawURL)
+	default:
+		return url.Parse(endpoint)
 	}
-
-	rawURL := fmt.Sprintf("%s://%s:%s", protocol, ip.String(), port)
-	return url.Parse(rawURL)
 }
 
 func (m *middleware) setSocket() error {
@@ -145,17 +146,41 @@ func (m *middleware) setSocket() error {
 		return err
 	}
 
+	m.Logger.Println("Connecting to Logjam on", endpoint)
 	socket, err := zmq4.NewSocket(zmq4.DEALER)
 	if err != nil {
 		return err
 	}
 
-	socket.Connect(endpoint.String())
-	socket.SetLinger(1 * time.Second)
-	socket.SetSndhwm(100)
-	socket.SetRcvhwm(100)
-	socket.SetRcvtimeo(5 * time.Second)
-	socket.SetSndtimeo(5 * time.Second)
+	err = socket.Connect(endpoint.String())
+	if err != nil {
+		return err
+	}
+
+	err = socket.SetLinger(1 * time.Second)
+	if err != nil {
+		return err
+	}
+
+	err = socket.SetSndhwm(100)
+	if err != nil {
+		return err
+	}
+
+	err = socket.SetRcvhwm(100)
+	if err != nil {
+		return err
+	}
+
+	err = socket.SetRcvtimeo(5 * time.Second)
+	if err != nil {
+		return err
+	}
+
+	err = socket.SetSndtimeo(5 * time.Second)
+	if err != nil {
+		return err
+	}
 
 	m.socket = socket
 
@@ -212,12 +237,21 @@ func (m *middleware) sendMessage(msg []byte) {
 // call this before you call other XING APIs
 func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 	ctx := hasContext.Context()
-	incoming, ok := ctx.Value(requestKey).(*http.Request)
-	if !ok {
+
+	var incomingHeaders http.Header
+
+	switch incoming := ctx.Value(requestKey).(type) {
+	case *http.Request:
+		incomingHeaders = incoming.Header
+	case *request:
+		incomingHeaders = incoming.request.Header
+		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName())
+		outgoing.Header.Set("X-Logjam-Request-Id", incoming.id())
+	default:
 		return
 	}
 
-	for key, value := range incoming.Header {
+	for key, value := range incomingHeaders {
 		if len(value) == 0 {
 			continue
 		}
