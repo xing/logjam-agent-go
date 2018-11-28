@@ -116,6 +116,10 @@ func (m *middleware) randomEndpoint() (*url.URL, error) {
 	protocol, host, port := matches[1], matches[2], matches[3]
 	switch protocol {
 	case "", "tcp":
+		if protocol == "" {
+			protocol = "tcp"
+		}
+
 		if host == "" {
 			return nil, fmt.Errorf("endpoint host can't be empty: %s", endpoint)
 		}
