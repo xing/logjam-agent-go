@@ -195,6 +195,10 @@ func TestMiddlewareOptionsInit(t *testing.T) {
 
 func TestMiddleware(t *testing.T) {
 	os.Setenv("HOSTNAME", "test-machine")
+	os.Setenv("DATACENTER", "ams1")
+	os.Setenv("CLUSTER", "a")
+	os.Setenv("NAMESPACE", "logjam")
+
 	mockClock := clock.NewMock()
 	now := time.Duration(1519659204000000000)
 	mockClock.Add(now)
@@ -284,6 +288,9 @@ func TestMiddleware(t *testing.T) {
 		So(output["rest_calls"], ShouldEqual, 1)
 		So(output["rest_time"], ShouldEqual, 5000)
 		So(output["view_time"], ShouldEqual, 5000)
+		So(output["datacenter"], ShouldEqual, "ams1")
+		So(output["cluster"], ShouldEqual, "a")
+		So(output["namespace"], ShouldEqual, "logjam")
 
 		requestInfo := output["request_info"].(map[string]interface{})
 		So(requestInfo["method"], ShouldEqual, "GET")
