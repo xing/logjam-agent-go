@@ -44,7 +44,7 @@ const (
 	UNKNOWN LogLevel = iota
 )
 
-type ActionNameFunc func(*http.Request) string
+type ActionNameExtractor func(*http.Request) string
 
 // The Options can be passed to NewMiddleware.
 type Options struct {
@@ -54,7 +54,7 @@ type Options struct {
 	RandomSource        io.Reader   // If you want a deterministic RNG for UUIDs, set this.
 	Clock               clock.Clock // If you want to be a timelord, set this.
 	Logger              Logger
-	ActionNameExtractor ActionNameFunc
+	ActionNameExtractor ActionNameExtractor
 }
 
 // Logger must provide some methods to let Logjam output its logs.
