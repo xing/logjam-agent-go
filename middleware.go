@@ -44,14 +44,17 @@ const (
 	UNKNOWN LogLevel = iota
 )
 
+type ActionNameFunc func(*http.Request) string
+
 // The Options can be passed to NewMiddleware.
 type Options struct {
-	Endpoints    string      // Comma separated list of ZeroMQ Brokers.
-	AppName      string      // Name of your application
-	EnvName      string      // What environment you're running in (production, preview, ...)
-	RandomSource io.Reader   // If you want a deterministic RNG for UUIDs, set this.
-	Clock        clock.Clock // If you want to be a timelord, set this.
-	Logger       Logger
+	Endpoints           string      // Comma separated list of ZeroMQ Brokers.
+	AppName             string      // Name of your application
+	EnvName             string      // What environment you're running in (production, preview, ...)
+	RandomSource        io.Reader   // If you want a deterministic RNG for UUIDs, set this.
+	Clock               clock.Clock // If you want to be a timelord, set this.
+	Logger              Logger
+	ActionNameExtractor ActionNameFunc
 }
 
 // Logger must provide some methods to let Logjam output its logs.
@@ -90,6 +93,12 @@ func NewMiddleware(handler http.Handler, options *Options) http.Handler {
 
 	if m.Logger == nil {
 		m.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+
+	if m.ActionNameExtractor == nil {
+		m.ActionNameExtractor = func(r *http.Request) string {
+			return actionNameFrom(r.Method, r.URL.EscapedPath())
+		}
 	}
 
 	return m

@@ -36,7 +36,7 @@ func (r *request) actionName() string {
 		return r.cachedActionName
 	}
 
-	r.cachedActionName = actionNameFrom(r.request.Method, r.request.URL.EscapedPath())
+	r.cachedActionName = r.middleware.ActionNameExtractor(r.request)
 	return r.cachedActionName
 }
 
