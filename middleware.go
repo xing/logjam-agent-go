@@ -211,7 +211,6 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	req = r.request.WithContext(context.WithValue(req.Context(), requestKey, r))
 	r.request = req
 
-	m.Logger.Println("LOGJAM start request")
 	r.start()
 
 	defer func() {
@@ -222,7 +221,6 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}()
 
 	metrics := httpsnoop.CaptureMetrics(m.handler, res, req)
-	m.Logger.Println("LOGJAM finish request: ", metrics)
 	r.finish(metrics)
 }
 
