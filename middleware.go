@@ -227,6 +227,7 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (m *middleware) newRequest(req *http.Request, res http.ResponseWriter) *request {
 	return &request{
 		middleware: m,
+		actionName: m.ActionNameExtractor(req),
 		request:    req,
 		response:   res,
 		logLines:   []interface{}{},
@@ -261,7 +262,7 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 		incomingHeaders = incoming.Header
 	case *request:
 		incomingHeaders = incoming.request.Header
-		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName())
+		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName)
 		outgoing.Header.Set("X-Logjam-Request-Id", incoming.id())
 	default:
 		return

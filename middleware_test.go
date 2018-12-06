@@ -50,7 +50,7 @@ func extractActionName(mw *middleware, method string, path string) string {
 	return mw.ActionNameExtractor(httptest.NewRequest(method, path, nil))
 }
 
-func TestActionNameFrom(t *testing.T) {
+func TestActionNameExtractor(t *testing.T) {
 	Convey("ActionNameExtractor", t, func() {
 		router := mux.NewRouter()
 		Convey("when set uses it", func() {
@@ -100,6 +100,32 @@ func TestActionNameFrom(t *testing.T) {
 				"Rest::ERecruitingApi::Vendor::V1::POST#chats")
 			So(extractActionName(mw, "PATCH", v1+"chats/123_baz"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::PATCH::Chats#by_id")
+		})
+	})
+}
+
+func TestNewRequest(t *testing.T) {
+	Convey("actionName", t, func() {
+		Convey("uses default extractor", func() {
+			router := mux.NewRouter()
+			options := &Options{}
+			mw := NewMiddleware(router, options).(*middleware)
+			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil), httptest.NewRecorder())
+
+			So(logjamRequest.actionName, ShouldEqual, "Some#action")
+		})
+
+		Convey("uses configured extractor", func() {
+			router := mux.NewRouter()
+			options := &Options{
+				ActionNameExtractor: func(r *http.Request) string {
+					return fmt.Sprintf("%s::such::generated", r.Method)
+				},
+			}
+			mw := NewMiddleware(router, options).(*middleware)
+			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil), httptest.NewRecorder())
+
+			So(logjamRequest.actionName, ShouldEqual, "GET::such::generated")
 		})
 	})
 }

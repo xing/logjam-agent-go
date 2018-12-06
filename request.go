@@ -21,7 +21,7 @@ type request struct {
 	request    *http.Request
 	response   http.ResponseWriter
 
-	cachedActionName   string
+	actionName         string
 	cachedUUID         string
 	startTime          time.Time
 	endTime            time.Time
@@ -31,22 +31,13 @@ type request struct {
 	statCounts         map[string]int64
 }
 
-func (r *request) actionName() string {
-	if r.cachedActionName != "" {
-		return r.cachedActionName
-	}
-
-	r.cachedActionName = r.middleware.ActionNameExtractor(r.request)
-	return r.cachedActionName
-}
-
 func (r *request) start() {
 	r.statDurations = map[string]time.Duration{}
 	r.statCounts = map[string]int64{}
 	r.startTime = r.middleware.Clock.Now()
 	header := r.response.Header()
 	header.Set("X-Logjam-Request-Id", r.id())
-	header.Set("X-Logjam-Request-Action", r.actionName())
+	header.Set("X-Logjam-Request-Action", r.actionName)
 	header.Set("X-Logjam-Caller-Id", r.request.Header.Get("X-Logjam-Caller-Id"))
 }
 
@@ -164,7 +155,7 @@ func (m *message) setCounts(counts map[string]int64) {
 
 func (r *request) payloadMessage(code int, host string) *message {
 	msg := &message{
-		Action:      r.actionName(),
+		Action:      r.actionName,
 		Code:        code,
 		IP:          obfuscateIP(host),
 		Lines:       r.logLines,
