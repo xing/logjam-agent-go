@@ -44,14 +44,17 @@ const (
 	UNKNOWN LogLevel = iota
 )
 
+type ActionNameExtractor func(*http.Request) string
+
 // The Options can be passed to NewMiddleware.
 type Options struct {
-	Endpoints    string      // Comma separated list of ZeroMQ Brokers.
-	AppName      string      // Name of your application
-	EnvName      string      // What environment you're running in (production, preview, ...)
-	RandomSource io.Reader   // If you want a deterministic RNG for UUIDs, set this.
-	Clock        clock.Clock // If you want to be a timelord, set this.
-	Logger       Logger
+	Endpoints           string      // Comma separated list of ZeroMQ Brokers.
+	AppName             string      // Name of your application
+	EnvName             string      // What environment you're running in (production, preview, ...)
+	RandomSource        io.Reader   // If you want a deterministic RNG for UUIDs, set this.
+	Clock               clock.Clock // If you want to be a timelord, set this.
+	Logger              Logger
+	ActionNameExtractor ActionNameExtractor
 }
 
 // Logger must provide some methods to let Logjam output its logs.
@@ -90,6 +93,12 @@ func NewMiddleware(handler http.Handler, options *Options) http.Handler {
 
 	if m.Logger == nil {
 		m.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+
+	if m.ActionNameExtractor == nil {
+		m.ActionNameExtractor = func(r *http.Request) string {
+			return actionNameFrom(r.Method, r.URL.EscapedPath())
+		}
 	}
 
 	return m
@@ -218,6 +227,7 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (m *middleware) newRequest(req *http.Request, res http.ResponseWriter) *request {
 	return &request{
 		middleware: m,
+		actionName: m.ActionNameExtractor(req),
 		request:    req,
 		response:   res,
 		logLines:   []interface{}{},
@@ -252,7 +262,7 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 		incomingHeaders = incoming.Header
 	case *request:
 		incomingHeaders = incoming.request.Header
-		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName())
+		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName)
 		outgoing.Header.Set("X-Logjam-Request-Id", incoming.id())
 	default:
 		return
