@@ -177,7 +177,7 @@ func TestObfuscateIP(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
-	logger := log.New(fs, "API", log.LstdFlags)
+	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
 
 	Convey("Log level values", t, func() {
 		So(DEBUG, ShouldEqual, 0)
@@ -231,7 +231,8 @@ func TestMiddlewareOptionsInit(t *testing.T) {
 		Convey("LOGJAM_BROKER", func() {
 			endpoints := "broker.monitor.ams1.xing.com"
 			os.Setenv("LOGJAM_BROKER", endpoints)
-			mw := NewMiddleware(router, options).(*middleware)
+			mw, ok := NewMiddleware(router, options).(*middleware)
+			So(ok, ShouldBeTrue)
 			os.Setenv("LOGJAM_BROKER", "")
 			So(mw.Endpoints, ShouldEqual, endpoints)
 		})
@@ -385,29 +386,23 @@ func TestMiddleware(t *testing.T) {
 
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
+		router := mux.NewRouter()
+		mw := NewMiddleware(router, &Options{
+			RandomSource: rand.New(rand.NewSource(123)),
+			AppName:      "testing",
+			EnvName:      "test",
+			ActionNameExtractor: func(r *http.Request) string {
+				return fmt.Sprintf("%s_userdefined", r.Method)
+			},
+		}).(*middleware)
 		incoming := httptest.NewRequest("GET", "/", nil)
-		incoming.Header.Set("X-Logjam-Test", "true")
-		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
+		res := httptest.NewRecorder()
+		wrapped := mw.newRequest(incoming, res)
+		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetLogjamHeaders(incomingW, outgoing)
-		So(outgoing.Header.Get("X-Logjam-Test"), ShouldEqual, "true")
-	})
-
-	Convey("SetLogjamHeaders with header without any values", t, func() {
-		incoming := httptest.NewRequest("GET", "/", nil)
-		incoming.Header = http.Header{"foo": []string{}}
-		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
-		outgoing := httptest.NewRequest("GET", "/", nil)
-		SetLogjamHeaders(incomingW, outgoing)
-		So(outgoing.Header, ShouldBeEmpty)
-	})
-
-	Convey("SetLogjamHeaders without header", t, func() {
-		incoming := httptest.NewRequest("GET", "/", nil)
-		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, incoming))
-		outgoing := httptest.NewRequest("GET", "/", nil)
-		SetLogjamHeaders(incomingW, outgoing)
-		So(outgoing.Header, ShouldBeEmpty)
+		So(outgoing.Header.Get("X-Logjam-Request-Action"), ShouldEqual, "GET_userdefined")
+		So(outgoing.Header.Get("X-Logjam-Request-Id"), ShouldEqual, "testing-test-f1405ced8b9948bab9109259515bf702")
 	})
 }
 

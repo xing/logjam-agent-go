@@ -94,7 +94,7 @@ func NewMiddleware(handler http.Handler, options *Options) http.Handler {
 	}
 
 	if m.Logger == nil {
-		m.Logger = log.New(os.Stderr, "", log.LstdFlags)
+		m.Logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 	}
 
 	if m.ActionNameExtractor == nil {
@@ -259,11 +259,13 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 		if outgoing.Header == nil {
 			outgoing.Header = http.Header{}
 		}
-		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName())
+		outgoing.Header.Set("X-Logjam-Request-Action", incoming.actionName)
 		outgoing.Header.Set("X-Logjam-Request-Id", incoming.id())
 		logger.Println("setting headers:", outgoing.Header)
 	} else {
-		logger.Println("couldn't set required outgoing headers, expect call sequence issues.",
-			"Please ensure that you are using the Logjam middleware.")
+		logger.Println("couldn't set required outgoing headers, expect call sequence issues.\n",
+			"Please ensure that you are using the Logjam middleware.\n",
+			"Request: ", fmt.Sprintf("%#v", hasContext.Context().Value(requestKey)),
+		)
 	}
 }
