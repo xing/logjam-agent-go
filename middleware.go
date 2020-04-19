@@ -261,6 +261,7 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 			outgoing.Header = http.Header{}
 		}
 		outgoing.Header.Set("X-Logjam-Caller-Id", incoming.id())
+		outgoing.Header.Set("X-Logjam-Action", incoming.actionName)
 	} else {
 		if logger != nil {
 			logger.Println("couldn't set required outgoing headers, expect call sequence issues.\n",
