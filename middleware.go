@@ -12,7 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/facebookgo/clock"
@@ -70,6 +70,7 @@ type middleware struct {
 	handler  http.Handler
 	socket   *zmq4.Socket
 	sequence uint64
+	mutex    sync.Mutex
 }
 
 // NewMiddleware can be used to wrap any standard http.Handler with the given
@@ -239,13 +240,15 @@ func (m *middleware) newRequest(req *http.Request, res http.ResponseWriter) *req
 }
 
 func (m *middleware) sendMessage(msg []byte) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.sequence++
 	_, err := m.socket.SendMessage(
 		m.AppName+"-"+m.EnvName,
 		"logs."+m.AppName+"."+m.EnvName,
 		msg,
-		packInfo(m.Clock, atomic.AddUint64(&m.sequence, 1)),
+		packInfo(m.Clock, m.sequence),
 	)
-
 	if err != nil {
 		m.Logger.Println(err)
 	}
