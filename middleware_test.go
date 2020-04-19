@@ -313,7 +313,7 @@ func TestMiddleware(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(res.StatusCode, ShouldEqual, 200)
 		So(res.Header.Get("X-Logjam-Request-Id"), ShouldEqual, "appName-envName-"+uuid)
-		So(res.Header.Get("X-Logjam-Request-Action"), ShouldEqual, actionName)
+		So(res.Header.Get("X-Logjam-Action"), ShouldEqual, actionName)
 		So(res.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, callerId)
 		So(res.Header.Get("Http-Authorization"), ShouldEqual, "")
 
@@ -401,8 +401,8 @@ func TestSetLogjamHeaders(t *testing.T) {
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetLogjamHeaders(incomingW, outgoing)
-		So(outgoing.Header.Get("X-Logjam-Request-Action"), ShouldEqual, "GET_userdefined")
-		So(outgoing.Header.Get("X-Logjam-Request-Id"), ShouldEqual, "testing-test-f1405ced8b9948bab9109259515bf702")
+		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "GET_userdefined")
+		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, "testing-test-f1405ced8b9948bab9109259515bf702")
 	})
 }
 

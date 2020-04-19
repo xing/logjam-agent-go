@@ -22,6 +22,8 @@ type request struct {
 	response   http.ResponseWriter
 
 	actionName         string
+	callerID           string
+	callerAction       string
 	cachedUUID         string
 	startTime          time.Time
 	endTime            time.Time
@@ -35,10 +37,12 @@ func (r *request) start() {
 	r.statDurations = map[string]time.Duration{}
 	r.statCounts = map[string]int64{}
 	r.startTime = r.middleware.Clock.Now()
+	r.callerID = r.request.Header.Get("X-Logjam-Caller-Id")
+	r.callerAction = r.request.Header.Get("X-Logjam-Action")
 	header := r.response.Header()
 	header.Set("X-Logjam-Request-Id", r.id())
-	header.Set("X-Logjam-Request-Action", r.actionName)
-	header.Set("X-Logjam-Caller-Id", r.request.Header.Get("X-Logjam-Caller-Id"))
+	header.Set("X-Logjam-Action", r.actionName)
+	header.Set("X-Logjam-Caller-Id", r.callerID)
 }
 
 func (r *request) log(severity LogLevel, line string) {
@@ -98,22 +102,23 @@ func (r *request) finish(metrics httpsnoop.Metrics) {
 }
 
 type message struct {
-	Action      string                 `json:"action"`
-	Code        int                    `json:"code"`
-	Host        string                 `json:"host"`
-	IP          string                 `json:"ip"`
-	Lines       []interface{}          `json:"lines"`
-	ProcessID   int                    `json:"process_id"`
-	RequestID   string                 `json:"request_id"`
-	RequestInfo map[string]interface{} `json:"request_info"`
-	StartedAt   string                 `json:"started_at"`
-	StartedMS   int64                  `json:"started_ms"`
-	Severity    LogLevel               `json:"severity"`
-	UserID      int64                  `json:"user_id"`
-	Minute      int64                  `json:"minute"`
-	Cluster     string                 `json:"cluster,omitempty"`
-	Datacenter  string                 `json:"datacenter,omitempty"`
-	Namespace   string                 `json:"namespace,omitempty"`
+	Action       string                 `json:"action"`
+	Code         int                    `json:"code"`
+	Host         string                 `json:"host"`
+	IP           string                 `json:"ip"`
+	Lines        []interface{}          `json:"lines"`
+	ProcessID    int                    `json:"process_id"`
+	RequestID    string                 `json:"request_id"`
+	CallerID     string                 `json:"caller_id,omitempty"`
+	CallerAction string                 `json:"caller_action,omitempty"`
+	RequestInfo  map[string]interface{} `json:"request_info"`
+	StartedAt    string                 `json:"started_at"`
+	StartedMS    int64                  `json:"started_ms"`
+	Severity     LogLevel               `json:"severity"`
+	UserID       int64                  `json:"user_id"`
+	Cluster      string                 `json:"cluster,omitempty"`
+	Datacenter   string                 `json:"datacenter,omitempty"`
+	Namespace    string                 `json:"namespace,omitempty"`
 
 	DbTime       float64 `json:"db_time"`
 	GcTime       float64 `json:"gc_time"`
@@ -155,17 +160,19 @@ func (m *message) setCounts(counts map[string]int64) {
 
 func (r *request) payloadMessage(code int, host string) *message {
 	msg := &message{
-		Action:      r.actionName,
-		Code:        code,
-		IP:          obfuscateIP(host),
-		Lines:       r.logLines,
-		ProcessID:   os.Getpid(),
-		RequestID:   r.uuid(),
-		RequestInfo: r.info(),
-		Severity:    r.severity(code),
-		StartedAt:   r.startTime.In(timeLocation).Format(time.RFC3339),
-		StartedMS:   r.startTime.UnixNano() / 1000000,
-		TotalTime:   durationBetween(r.startTime, r.endTime),
+		Action:       r.actionName,
+		Code:         code,
+		IP:           obfuscateIP(host),
+		Lines:        r.logLines,
+		ProcessID:    os.Getpid(),
+		RequestID:    r.uuid(),
+		CallerID:     r.callerID,
+		CallerAction: r.callerAction,
+		RequestInfo:  r.info(),
+		Severity:     r.severity(code),
+		StartedAt:    r.startTime.In(timeLocation).Format(time.RFC3339),
+		StartedMS:    r.startTime.UnixNano() / 1000000,
+		TotalTime:    durationBetween(r.startTime, r.endTime),
 	}
 	msg.setDurations(r.statDurations)
 	msg.setCounts(r.statCounts)
