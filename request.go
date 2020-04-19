@@ -31,6 +31,7 @@ type request struct {
 	logLines           []interface{}
 	statDurations      map[string]time.Duration
 	statCounts         map[string]int64
+	severity           LogLevel
 }
 
 func (r *request) start() {
@@ -46,6 +47,9 @@ func (r *request) start() {
 }
 
 func (r *request) log(severity LogLevel, line string) {
+	if r.severity < severity {
+		r.severity = severity
+	}
 	r.middleware.Logger.Println(line)
 
 	if r.logLinesBytesCount > maxBytesAllLines {
@@ -169,7 +173,7 @@ func (r *request) payloadMessage(code int, host string) *message {
 		CallerID:     r.callerID,
 		CallerAction: r.callerAction,
 		RequestInfo:  r.info(),
-		Severity:     r.severity(code),
+		Severity:     r.severity,
 		StartedAt:    r.startTime.In(timeLocation).Format(time.RFC3339),
 		StartedMS:    r.startTime.UnixNano() / 1000000,
 		TotalTime:    durationBetween(r.startTime, r.endTime),
@@ -191,18 +195,6 @@ func ifEnv(name string, fn func(string)) {
 	if value := os.Getenv(name); value != "" {
 		fn(value)
 	}
-}
-
-func (r *request) severity(code int) LogLevel {
-	if code >= 1 && code < 400 {
-		return INFO
-	} else if code >= 400 && code < 500 {
-		return WARN
-	} else if code >= 500 {
-		return ERROR
-	}
-
-	return FATAL
 }
 
 func (r *request) info() map[string]interface{} {
