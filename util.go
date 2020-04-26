@@ -188,11 +188,9 @@ func AddDuration(c HasContext, key string, value time.Duration) {
 func AddDurationFunc(c HasContext, key string, f func()) {
 	if request, ok := c.Context().Value(requestKey).(*request); ok {
 		beginning := agent.opts.Clock.Now()
-		f()
-		request.addDuration(key, agent.opts.Clock.Now().Sub(beginning))
-	} else {
-		f()
+		defer func() { request.addDuration(key, agent.opts.Clock.Now().Sub(beginning)) }()
 	}
+	f()
 }
 
 func durationBetween(start, end time.Time) float64 {
