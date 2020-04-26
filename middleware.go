@@ -3,7 +3,9 @@ package logjam
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"regexp"
 
 	"github.com/felixge/httpsnoop"
 )
@@ -62,8 +64,19 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := m.ActionNameExtractor(r)
-	logjamRequest := newRequest(action, r)
+	logjamRequest := newRequest(action)
 	r = r.WithContext(context.WithValue(r.Context(), requestKey, logjamRequest))
+
+	logjamRequest.request = r
+	logjamRequest.callerID = r.Header.Get("X-Logjam-Caller-Id")
+	logjamRequest.callerAction = r.Header.Get("X-Logjam-Action")
+
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = ""
+	}
+	// TODO: obfuscation should be optional
+	logjamRequest.ip = obfuscateIP(host)
 
 	header := w.Header()
 	header.Set("X-Logjam-Request-Id", logjamRequest.id)
@@ -78,7 +91,73 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	metrics := httpsnoop.CaptureMetrics(m.handler, w, r)
+
+	logjamRequest.info = requestInfo(r)
 	logjamRequest.finish(metrics)
+}
+
+func requestInfo(r *http.Request) map[string]interface{} {
+	info := map[string]interface{}{
+		"method": r.Method,
+		"url":    r.URL.String(),
+	}
+	if headers := requestHeaders(r); len(headers) > 0 {
+		info["headers"] = headers
+	}
+	if query := queryParameters(r); len(query) > 0 {
+		info["query_parameters"] = query
+	}
+	if body := bodyParameters(r); len(body) > 0 {
+		info["body_parameters"] = body
+	}
+	return info
+}
+
+func bodyParameters(r *http.Request) map[string]interface{} {
+	bodyParameters := map[string]interface{}{}
+	if r.MultipartForm == nil {
+		return bodyParameters
+	}
+	for key, values := range r.MultipartForm.Value {
+		if len(values) == 1 {
+			bodyParameters[key] = values[0]
+		} else {
+			bodyParameters[key] = values
+		}
+	}
+	return bodyParameters
+}
+
+func queryParameters(r *http.Request) map[string]interface{} {
+	queryParameters := map[string]interface{}{}
+	for key, values := range r.URL.Query() {
+		if len(values) == 1 {
+			queryParameters[key] = values[0]
+		} else {
+			queryParameters[key] = values
+		}
+	}
+	return queryParameters
+}
+
+var hiddenHeaders = regexp.MustCompile(`\A(Server|Path|Gateway|Request|Script|Remote|Query|Passenger|Document|Scgi|Union[_-]Station|Original[_-]|Routes[_-]|Raw[_-]Post[_-]Data|(Http[_-])?Authorization)`)
+
+func requestHeaders(r *http.Request) map[string]string {
+	headers := map[string]string{}
+	for key, values := range r.Header {
+		if ignoredHeader(r, key) {
+			continue
+		}
+		// ignore double set headers since Logjam can't handle them.
+		headers[key] = values[0]
+	}
+
+	return headers
+}
+
+func ignoredHeader(r *http.Request, name string) bool {
+	return hiddenHeaders.MatchString(name) ||
+		(name == "Content-Length" && r.ContentLength <= 0)
 }
 
 // SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing

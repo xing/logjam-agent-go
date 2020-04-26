@@ -343,7 +343,8 @@ func TestMiddleware(t *testing.T) {
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
 		incoming := httptest.NewRequest("GET", "/", nil)
-		wrapped := newRequest("foobar", incoming)
+		wrapped := newRequest("foobar")
+		wrapped.request = incoming
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetLogjamHeaders(incomingW, outgoing)

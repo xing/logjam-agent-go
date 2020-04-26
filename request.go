@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"reflect"
-	"regexp"
 	"time"
 
 	"github.com/felixge/httpsnoop"
@@ -32,14 +30,15 @@ type request struct {
 	statDurations      map[string]time.Duration
 	statCounts         map[string]int64
 	severity           LogLevel
+	info               map[string]interface{}
+	ip                 string
 }
 
 // newRequest creates a new logjam request for a given action name and http request. Pass
 // in nil as http request if this is form a background process.
-func newRequest(action string, req *http.Request) *request {
+func newRequest(action string) *request {
 	r := request{
 		actionName:    action,
-		request:       req,
 		logLines:      []interface{}{},
 		statDurations: map[string]time.Duration{},
 		statCounts:    map[string]int64{},
@@ -47,10 +46,6 @@ func newRequest(action string, req *http.Request) *request {
 	r.startTime = agent.opts.Clock.Now()
 	r.uuid = generateUUID()
 	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
-	if req != nil {
-		r.callerID = req.Header.Get("X-Logjam-Caller-Id")
-		r.callerAction = req.Header.Get("X-Logjam-Action")
-	}
 	return &r
 }
 
@@ -97,12 +92,7 @@ func (r *request) finishWithPanic(recovered interface{}) {
 func (r *request) finish(metrics httpsnoop.Metrics) {
 	r.endTime = agent.opts.Clock.Now()
 
-	host, _, err := net.SplitHostPort(r.request.RemoteAddr)
-	if err != nil {
-		host = ""
-	}
-
-	payload := r.payloadMessage(metrics.Code, host)
+	payload := r.payloadMessage(metrics.Code)
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
@@ -117,8 +107,8 @@ type message struct {
 	Action       string                 `json:"action"`
 	Code         int                    `json:"code"`
 	Host         string                 `json:"host"`
-	IP           string                 `json:"ip"`
-	Lines        []interface{}          `json:"lines"`
+	IP           string                 `json:"ip,omitempty"`
+	Lines        []interface{}          `json:"lines,omitempty"`
 	ProcessID    int                    `json:"process_id"`
 	RequestID    string                 `json:"request_id"`
 	CallerID     string                 `json:"caller_id,omitempty"`
@@ -170,17 +160,17 @@ func (m *message) setCounts(counts map[string]int64) {
 	}
 }
 
-func (r *request) payloadMessage(code int, host string) *message {
+func (r *request) payloadMessage(code int) *message {
 	msg := &message{
 		Action:       r.actionName,
 		Code:         code,
-		IP:           obfuscateIP(host),
+		IP:           r.ip,
 		Lines:        r.logLines,
 		ProcessID:    os.Getpid(),
 		RequestID:    r.uuid,
 		CallerID:     r.callerID,
 		CallerAction: r.callerAction,
-		RequestInfo:  r.info(),
+		RequestInfo:  r.info,
 		Severity:     r.severity,
 		StartedAt:    r.startTime.In(timeLocation).Format(time.RFC3339),
 		StartedMS:    r.startTime.UnixNano() / 1000000,
@@ -203,78 +193,6 @@ func ifEnv(name string, fn func(string)) {
 	if value := os.Getenv(name); value != "" {
 		fn(value)
 	}
-}
-
-func (r *request) info() map[string]interface{} {
-	if r.request == nil {
-		return nil
-	}
-	info := map[string]interface{}{
-		"method": r.request.Method,
-		"url":    r.request.URL.String(),
-	}
-
-	if headers := r.headers(); len(headers) > 0 {
-		info["headers"] = headers
-	}
-
-	if query := r.queryParameters(); len(query) > 0 {
-		info["query_parameters"] = query
-	}
-
-	if body := r.bodyParameters(); len(body) > 0 {
-		info["body_parameters"] = body
-	}
-
-	return info
-}
-
-func (r *request) bodyParameters() map[string]interface{} {
-	bodyParameters := map[string]interface{}{}
-	if r.request.MultipartForm == nil {
-		return bodyParameters
-	}
-	for key, values := range r.request.MultipartForm.Value {
-		if len(values) == 1 {
-			bodyParameters[key] = values[0]
-		} else {
-			bodyParameters[key] = values
-		}
-	}
-	return bodyParameters
-}
-
-func (r *request) queryParameters() map[string]interface{} {
-	queryParameters := map[string]interface{}{}
-	for key, values := range r.request.URL.Query() {
-		if len(values) == 1 {
-			queryParameters[key] = values[0]
-		} else {
-			queryParameters[key] = values
-		}
-	}
-	return queryParameters
-}
-
-var hiddenHeaders = regexp.MustCompile(`\A(Server|Path|Gateway|Request|Script|Remote|Query|Passenger|Document|Scgi|Union[_-]Station|Original[_-]|Routes[_-]|Raw[_-]Post[_-]Data|(Http[_-])?Authorization)`)
-
-func (r *request) headers() map[string]string {
-	headers := map[string]string{}
-	for key, values := range r.request.Header {
-		if r.isIgnoreHeader(key) {
-			continue
-		}
-
-		// ignore double set headers since Logjam can't handle them.
-		headers[key] = values[0]
-	}
-
-	return headers
-}
-
-func (r *request) isIgnoreHeader(name string) bool {
-	return hiddenHeaders.MatchString(name) ||
-		(name == "Content-Length" && r.request.ContentLength <= 0)
 }
 
 // generateUUID provides a Logjam compatible UUID, which means it doesn't adhere to the
