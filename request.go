@@ -175,24 +175,32 @@ func (r *request) payloadMessage(code int) *message {
 		StartedAt:    r.startTime.In(timeLocation).Format(time.RFC3339),
 		StartedMS:    r.startTime.UnixNano() / 1000000,
 		TotalTime:    durationBetween(r.startTime, r.endTime),
+		Host:         host,
+		Datacenter:   datacenter,
+		Cluster:      cluster,
+		Namespace:    namespace,
 	}
 	msg.setDurations(r.statDurations)
 	msg.setCounts(r.statCounts)
-	msg.setEnvs()
 	return msg
 }
 
-func (m *message) setEnvs() {
-	ifEnv("HOSTNAME", func(value string) { m.Host = value })
-	ifEnv("CLUSTER", func(value string) { m.Cluster = value })
-	ifEnv("DATACENTER", func(value string) { m.Datacenter = value })
-	ifEnv("NAMESPACE", func(value string) { m.Namespace = value })
+var (
+	host       string
+	datacenter string
+	cluster    string
+	namespace  string
+)
+
+func init() {
+	setRequestEnv()
 }
 
-func ifEnv(name string, fn func(string)) {
-	if value := os.Getenv(name); value != "" {
-		fn(value)
-	}
+func setRequestEnv() {
+	host = os.Getenv("HOSTNAME")
+	cluster = os.Getenv("CLUSTER")
+	datacenter = os.Getenv("DATACENTER")
+	namespace = os.Getenv("NAMESPACE")
 }
 
 // generateUUID provides a Logjam compatible UUID, which means it doesn't adhere to the

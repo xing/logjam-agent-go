@@ -198,6 +198,7 @@ func TestMiddleware(t *testing.T) {
 	os.Setenv("DATACENTER", "dc")
 	os.Setenv("CLUSTER", "a")
 	os.Setenv("NAMESPACE", "logjam")
+	setRequestEnv()
 
 	mockClock := clock.NewMock()
 	now := time.Duration(1519659204000000000)
