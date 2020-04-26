@@ -1,6 +1,7 @@
 package logjam
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,14 +18,14 @@ import (
 )
 
 type request struct {
-	middleware *middleware
-	request    *http.Request
-	response   http.ResponseWriter
+	request  *http.Request
+	response http.ResponseWriter
 
 	actionName         string
 	callerID           string
 	callerAction       string
-	cachedUUID         string
+	uuid               string
+	id                 string
 	startTime          time.Time
 	endTime            time.Time
 	logLinesBytesCount int
@@ -37,11 +38,13 @@ type request struct {
 func (r *request) start() {
 	r.statDurations = map[string]time.Duration{}
 	r.statCounts = map[string]int64{}
-	r.startTime = r.middleware.Clock.Now()
+	r.startTime = agent.opts.Clock.Now()
 	r.callerID = r.request.Header.Get("X-Logjam-Caller-Id")
 	r.callerAction = r.request.Header.Get("X-Logjam-Action")
+	r.uuid = generateUUID()
+	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
 	header := r.response.Header()
-	header.Set("X-Logjam-Request-Id", r.id())
+	header.Set("X-Logjam-Request-Id", r.id)
 	header.Set("X-Logjam-Action", r.actionName)
 	header.Set("X-Logjam-Caller-Id", r.callerID)
 }
@@ -50,7 +53,7 @@ func (r *request) log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
 	}
-	r.middleware.Logger.Println(line)
+	logger.Println(line)
 
 	if r.logLinesBytesCount > maxBytesAllLines {
 		return
@@ -59,9 +62,9 @@ func (r *request) log(severity LogLevel, line string) {
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
 	if r.logLinesBytesCount < maxBytesAllLines {
-		r.logLines = append(r.logLines, formatLine(severity, r.middleware.Clock.Now(), line))
+		r.logLines = append(r.logLines, formatLine(severity, agent.opts.Clock.Now(), line))
 	} else {
-		r.logLines = append(r.logLines, formatLine(severity, r.middleware.Clock.Now(), linesTruncated))
+		r.logLines = append(r.logLines, formatLine(severity, agent.opts.Clock.Now(), linesTruncated))
 	}
 }
 
@@ -87,7 +90,7 @@ func (r *request) finishWithPanic(recovered interface{}) {
 }
 
 func (r *request) finish(metrics httpsnoop.Metrics) {
-	r.endTime = r.middleware.Clock.Now()
+	r.endTime = agent.opts.Clock.Now()
 
 	host, _, err := net.SplitHostPort(r.request.RemoteAddr)
 	if err != nil {
@@ -98,11 +101,11 @@ func (r *request) finish(metrics httpsnoop.Metrics) {
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
-		r.middleware.Logger.Println(err)
+		logger.Println(err)
 		return
 	}
 
-	r.middleware.sendMessage(buf)
+	sendMessage(buf)
 }
 
 type message struct {
@@ -169,7 +172,7 @@ func (r *request) payloadMessage(code int, host string) *message {
 		IP:           obfuscateIP(host),
 		Lines:        r.logLines,
 		ProcessID:    os.Getpid(),
-		RequestID:    r.uuid(),
+		RequestID:    r.uuid,
 		CallerID:     r.callerID,
 		CallerAction: r.callerAction,
 		RequestInfo:  r.info(),
@@ -266,18 +269,11 @@ func (r *request) isIgnoreHeader(name string) bool {
 		(name == "Content-Length" && r.request.ContentLength <= 0)
 }
 
-func (r *request) id() string {
-	return fmt.Sprintf("%s-%s-%s", r.middleware.AppName, r.middleware.EnvName, r.uuid())
-}
-
-// uuid provides a Logjam compatible UUID, which means it doesn't adhere to
-// the standard by having the dashes removed.
-func (r *request) uuid() string {
-	if r.cachedUUID != "" {
-		return r.cachedUUID
-	}
+// generateUUID provides a Logjam compatible UUID, which means it doesn't adhere to the
+// standard by having the dashes removed.
+func generateUUID() string {
 	uuid := make([]byte, 16)
-	if _, err := io.ReadFull(r.middleware.RandomSource, uuid); err != nil {
+	if _, err := io.ReadFull(rand.Reader, uuid); err != nil {
 		log.Fatalln(err)
 	}
 	uuid[6] = (uuid[6] & 0x0f) | 0x40 // Version 4
@@ -286,6 +282,5 @@ func (r *request) uuid() string {
 	var hexbuf [32]byte
 
 	hex.Encode(hexbuf[:], uuid[:])
-	r.cachedUUID = string(hexbuf[:])
-	return r.cachedUUID
+	return string(hexbuf[:])
 }

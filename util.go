@@ -185,13 +185,13 @@ func AddDuration(c HasContext, key string, value time.Duration) {
 // AddDurationFunc is a helper function that records the duration of the passed
 // function for you, in cases where this is not useful just use AddDuration
 // instead.
-func AddDurationFunc(c HasContext, key string, fun func()) {
+func AddDurationFunc(c HasContext, key string, f func()) {
 	if request, ok := c.Context().Value(requestKey).(*request); ok {
-		beginning := request.middleware.Clock.Now()
-		fun()
-		request.addDuration(key, request.middleware.Clock.Now().Sub(beginning))
+		beginning := agent.opts.Clock.Now()
+		f()
+		request.addDuration(key, agent.opts.Clock.Now().Sub(beginning))
 	} else {
-		fun()
+		f()
 	}
 }
 
@@ -237,18 +237,4 @@ func ipv4for(host string) (net.IP, error) {
 	}
 
 	return ip, nil
-}
-
-func chooseEndpoint(endpoint string) string {
-	if endpoint != "" {
-		return endpoint
-	}
-
-	if endpoints := os.Getenv("LOGJAM_AGENT_ZMQ_ENDPOINTS"); endpoints != "" {
-		return endpoints
-	} else if broker := os.Getenv("LOGJAM_BROKER"); broker != "" {
-		return broker
-	}
-
-	return "localhost"
 }

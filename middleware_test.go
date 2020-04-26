@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -54,7 +53,7 @@ func TestActionNameExtractor(t *testing.T) {
 	Convey("ActionNameExtractor", t, func() {
 		router := mux.NewRouter()
 		Convey("when set uses it", func() {
-			options := &Options{
+			options := &MiddlewareOptions{
 				ActionNameExtractor: func(r *http.Request) string {
 					return fmt.Sprintf("%s_userdefined", r.Method)
 				},
@@ -65,7 +64,7 @@ func TestActionNameExtractor(t *testing.T) {
 		})
 
 		Convey("when unset uses default", func() {
-			options := &Options{Endpoints: ""}
+			options := &MiddlewareOptions{}
 			mw := NewMiddleware(router, options).(*middleware)
 
 			So(extractActionName(mw, "GET", "/swagger/index.html"), ShouldEqual,
@@ -108,7 +107,7 @@ func TestNewRequest(t *testing.T) {
 	Convey("actionName", t, func() {
 		Convey("uses default extractor", func() {
 			router := mux.NewRouter()
-			options := &Options{}
+			options := &MiddlewareOptions{}
 			mw := NewMiddleware(router, options).(*middleware)
 			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil), httptest.NewRecorder())
 
@@ -117,7 +116,7 @@ func TestNewRequest(t *testing.T) {
 
 		Convey("uses configured extractor", func() {
 			router := mux.NewRouter()
-			options := &Options{
+			options := &MiddlewareOptions{
 				ActionNameExtractor: func(r *http.Request) string {
 					return fmt.Sprintf("%s::such::generated", r.Method)
 				},
@@ -177,7 +176,7 @@ func TestObfuscateIP(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
-	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
+	logger = log.New(fs, "API", log.LstdFlags|log.Lshortfile)
 
 	Convey("Log level values", t, func() {
 		So(DEBUG, ShouldEqual, 0)
@@ -204,7 +203,7 @@ func TestLog(t *testing.T) {
 		})
 
 		Convey("truncating lines", func() {
-			r := request{middleware: &middleware{Options: &Options{Clock: mockClock, Logger: logger}}}
+			r := request{}
 			overflow := (maxBytesAllLines / maxLineLength)
 			for i := 0; i < overflow*2; i++ {
 				r.log(DEBUG, strings.Repeat("x", maxLineLength))
@@ -216,37 +215,13 @@ func TestLog(t *testing.T) {
 }
 
 func TestMiddlewareOptionsInit(t *testing.T) {
-	Convey("the channel", t, func() {
-		router := mux.NewRouter()
-		options := &Options{Endpoints: ""}
-
-		Convey("LOGJAM_AGENT_ZMQ_ENDPOINTS", func() {
-			endpoints := "broker-1.monitor.ams1.xing.com,broker-2.monitor.ams1.xing.com,broker-3.monitor.ams1.xing.com"
-			os.Setenv("LOGJAM_AGENT_ZMQ_ENDPOINTS", endpoints)
-			mw := NewMiddleware(router, options).(*middleware)
-			os.Setenv("LOGJAM_AGENT_ZMQ_ENDPOINTS", "")
-			So(mw.Endpoints, ShouldEqual, endpoints)
-		})
-
-		Convey("LOGJAM_BROKER", func() {
-			endpoints := "broker.monitor.ams1.xing.com"
-			os.Setenv("LOGJAM_BROKER", endpoints)
-			mw, ok := NewMiddleware(router, options).(*middleware)
-			So(ok, ShouldBeTrue)
-			os.Setenv("LOGJAM_BROKER", "")
-			So(mw.Endpoints, ShouldEqual, endpoints)
-		})
-
-		Convey("default value", func() {
-			mw := NewMiddleware(router, options).(*middleware)
-			So(mw.Endpoints, ShouldEqual, "localhost")
-		})
+	Convey("new middleware", t, func() {
 	})
 }
 
 func TestMiddleware(t *testing.T) {
 	os.Setenv("HOSTNAME", "test-machine")
-	os.Setenv("DATACENTER", "ams1")
+	os.Setenv("DATACENTER", "dc")
 	os.Setenv("CLUSTER", "a")
 	os.Setenv("NAMESPACE", "logjam")
 
@@ -277,15 +252,16 @@ func TestMiddleware(t *testing.T) {
 		})
 	})
 
-	options := &Options{
-		Endpoints:    "127.0.0.1,localhost",
-		AppName:      "appName",
-		EnvName:      "envName",
-		Clock:        mockClock,
-		RandomSource: rand.New(rand.NewSource(123)),
+	agentOptions := AgentOptions{
+		Endpoints: "127.0.0.1,localhost",
+		AppName:   "appName",
+		EnvName:   "envName",
+		Clock:     mockClock,
 	}
+	SetupAgent(&agentOptions)
+	defer ShutdownAgent()
 
-	server := httptest.NewServer(NewMiddleware(router, options))
+	server := httptest.NewServer(NewMiddleware(router, &MiddlewareOptions{}))
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
@@ -296,12 +272,11 @@ func TestMiddleware(t *testing.T) {
 			socket.Unbind("tcp://*:9604")
 		}()
 
-		uuid := "405ced8b99684af9909259515bf7025a"
-		callerId := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
+		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
 		actionName := "Rest::ERecruitingApi::Vendor::V1::GET::Users#by_id"
 
 		req, err := http.NewRequest("GET", server.URL+"/rest/e-recruiting-api/vendor/v1/users/123", nil)
-		req.Header.Set("X-Logjam-Caller-Id", callerId)
+		req.Header.Set("X-Logjam-Caller-Id", callerID)
 		req.Header.Set("Authorization", "4ec04124-bd41-49e2-9e30-5b189f5ca5f2")
 		query := req.URL.Query()
 		query.Set("single", "value")
@@ -312,17 +287,20 @@ func TestMiddleware(t *testing.T) {
 		res, err := server.Client().Do(req)
 		So(err, ShouldBeNil)
 		So(res.StatusCode, ShouldEqual, 200)
-		So(res.Header.Get("X-Logjam-Request-Id"), ShouldEqual, "appName-envName-"+uuid)
+		requestID := res.Header.Get("X-Logjam-Request-Id")
+		So(requestID, ShouldStartWith, "appName-envName-")
+		requestParts := strings.Split(requestID, "-")
+		uuid := requestParts[len(requestParts)-1]
 		So(res.Header.Get("X-Logjam-Action"), ShouldEqual, actionName)
-		So(res.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, callerId)
+		So(res.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, callerID)
 		So(res.Header.Get("Http-Authorization"), ShouldEqual, "")
 
 		msg, err := socket.RecvMessage(0)
 		So(err, ShouldBeNil)
 		So(msg, ShouldHaveLength, 5)
 
-		So(msg[1], ShouldEqual, options.AppName+"-"+options.EnvName)
-		So(msg[2], ShouldEqual, "logs."+options.AppName+"."+options.EnvName)
+		So(msg[1], ShouldEqual, agentOptions.AppName+"-"+agentOptions.EnvName)
+		So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
 
 		output := map[string]interface{}{}
 		json.Unmarshal([]byte(msg[3]), &output)
@@ -339,7 +317,7 @@ func TestMiddleware(t *testing.T) {
 		So(output["rest_calls"], ShouldEqual, 1)
 		So(output["rest_time"], ShouldEqual, 5000)
 		So(output["view_time"], ShouldEqual, 5000)
-		So(output["datacenter"], ShouldEqual, "ams1")
+		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
 
@@ -354,7 +332,7 @@ func TestMiddleware(t *testing.T) {
 		So(requestInfo["headers"], ShouldResemble, map[string]interface{}{
 			"Accept-Encoding":    "gzip",
 			"User-Agent":         "Go-http-client/1.1",
-			"X-Logjam-Caller-Id": callerId,
+			"X-Logjam-Caller-Id": callerID,
 		})
 
 		So(requestInfo["query_parameters"], ShouldResemble, map[string]interface{}{
@@ -387,10 +365,7 @@ func TestMiddleware(t *testing.T) {
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
 		router := mux.NewRouter()
-		mw := NewMiddleware(router, &Options{
-			RandomSource: rand.New(rand.NewSource(123)),
-			AppName:      "testing",
-			EnvName:      "test",
+		mw := NewMiddleware(router, &MiddlewareOptions{
 			ActionNameExtractor: func(r *http.Request) string {
 				return fmt.Sprintf("%s_userdefined", r.Method)
 			},
@@ -398,11 +373,12 @@ func TestSetLogjamHeaders(t *testing.T) {
 		incoming := httptest.NewRequest("GET", "/", nil)
 		res := httptest.NewRecorder()
 		wrapped := mw.newRequest(incoming, res)
+		wrapped.start()
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetLogjamHeaders(incomingW, outgoing)
 		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "GET_userdefined")
-		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, "testing-test-f1405ced8b9948bab9109259515bf702")
+		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, wrapped.id)
 	})
 }
 

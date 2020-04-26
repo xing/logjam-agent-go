@@ -1,4 +1,4 @@
-module github.com/xing/logjam-go
+module github.com/xing/logjam-agent-go
 
 go 1.14
 
