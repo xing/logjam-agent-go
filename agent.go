@@ -163,7 +163,6 @@ func sendMessage(msg []byte) {
 	meta := packInfo(agent.opts.Clock, agent.sequence)
 	_, err := agent.socket.SendMessage(agent.stream, agent.topic, msg, meta)
 	if err != nil {
-		panic("TODO: implement agent error logging")
-		//agent.Logger.Println(err)
+		logger.Println(err)
 	}
 }
