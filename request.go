@@ -34,16 +34,24 @@ type request struct {
 	severity           LogLevel
 }
 
-func (r *request) start() {
-	r.statDurations = map[string]time.Duration{}
-	r.statCounts = map[string]int64{}
+// newRequest creates a new logjam request for a given action name and http request. Pass
+// in nil as http request if this is form a background process.
+func newRequest(action string, req *http.Request) *request {
+	r := request{
+		actionName:    action,
+		request:       req,
+		logLines:      []interface{}{},
+		statDurations: map[string]time.Duration{},
+		statCounts:    map[string]int64{},
+	}
 	r.startTime = agent.opts.Clock.Now()
 	r.uuid = generateUUID()
 	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
-	if r.request != nil {
-		r.callerID = r.request.Header.Get("X-Logjam-Caller-Id")
-		r.callerAction = r.request.Header.Get("X-Logjam-Action")
+	if req != nil {
+		r.callerID = req.Header.Get("X-Logjam-Caller-Id")
+		r.callerAction = req.Header.Get("X-Logjam-Action")
 	}
+	return &r
 }
 
 func (r *request) log(severity LogLevel, line string) {

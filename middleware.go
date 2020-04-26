@@ -60,35 +60,25 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 	return m
 }
 
-func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	r := m.newRequest(req)
-	req = r.request.WithContext(context.WithValue(req.Context(), requestKey, r))
-	r.request = req
+func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	action := m.ActionNameExtractor(r)
+	logjamRequest := newRequest(action, r)
+	r = r.WithContext(context.WithValue(r.Context(), requestKey, logjamRequest))
 
-	r.start()
-
-	header := res.Header()
-	header.Set("X-Logjam-Request-Id", r.id)
-	header.Set("X-Logjam-Action", r.actionName)
-	header.Set("X-Logjam-Caller-Id", r.callerID)
+	header := w.Header()
+	header.Set("X-Logjam-Request-Id", logjamRequest.id)
+	header.Set("X-Logjam-Action", logjamRequest.actionName)
+	header.Set("X-Logjam-Caller-Id", logjamRequest.callerID)
 
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			r.finishWithPanic(recovered)
+			logjamRequest.finishWithPanic(recovered)
 			panic(recovered)
 		}
 	}()
 
-	metrics := httpsnoop.CaptureMetrics(m.handler, res, req)
-	r.finish(metrics)
-}
-
-func (m *middleware) newRequest(req *http.Request) *request {
-	return &request{
-		actionName: m.ActionNameExtractor(req),
-		request:    req,
-		logLines:   []interface{}{},
-	}
+	metrics := httpsnoop.CaptureMetrics(m.handler, w, r)
+	logjamRequest.finish(metrics)
 }
 
 // SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing

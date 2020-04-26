@@ -103,32 +103,6 @@ func TestActionNameExtractor(t *testing.T) {
 	})
 }
 
-func TestNewRequest(t *testing.T) {
-	Convey("actionName", t, func() {
-		Convey("uses default extractor", func() {
-			router := mux.NewRouter()
-			options := &MiddlewareOptions{}
-			mw := NewMiddleware(router, options).(*middleware)
-			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil))
-
-			So(logjamRequest.actionName, ShouldEqual, "Some#action")
-		})
-
-		Convey("uses configured extractor", func() {
-			router := mux.NewRouter()
-			options := &MiddlewareOptions{
-				ActionNameExtractor: func(r *http.Request) string {
-					return fmt.Sprintf("%s::such::generated", r.Method)
-				},
-			}
-			mw := NewMiddleware(router, options).(*middleware)
-			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil))
-
-			So(logjamRequest.actionName, ShouldEqual, "GET::such::generated")
-		})
-	})
-}
-
 func TestLogjamHelpers(t *testing.T) {
 	now := time.Date(2345, 11, 28, 23, 45, 50, 123456789, timeLocation)
 	nowString := "2345-11-28T23:45:50.123456"
@@ -176,7 +150,7 @@ func TestObfuscateIP(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
-	logger = log.New(fs, "API", log.LstdFlags|log.Lshortfile)
+	SetupAgent(&AgentOptions{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
 
 	Convey("Log level values", t, func() {
 		So(DEBUG, ShouldEqual, 0)
@@ -252,11 +226,15 @@ func TestMiddleware(t *testing.T) {
 		})
 	})
 
+	fs, _ := os.Open(os.DevNull)
+	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
+
 	agentOptions := AgentOptions{
 		Endpoints: "127.0.0.1,localhost",
 		AppName:   "appName",
 		EnvName:   "envName",
 		Clock:     mockClock,
+		Logger:    logger,
 	}
 	SetupAgent(&agentOptions)
 	defer ShutdownAgent()
@@ -364,19 +342,12 @@ func TestMiddleware(t *testing.T) {
 
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
-		router := mux.NewRouter()
-		mw := NewMiddleware(router, &MiddlewareOptions{
-			ActionNameExtractor: func(r *http.Request) string {
-				return fmt.Sprintf("%s_userdefined", r.Method)
-			},
-		}).(*middleware)
 		incoming := httptest.NewRequest("GET", "/", nil)
-		wrapped := mw.newRequest(incoming)
-		wrapped.start()
+		wrapped := newRequest("foobar", incoming)
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetLogjamHeaders(incomingW, outgoing)
-		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "GET_userdefined")
+		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "foobar")
 		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, wrapped.id)
 	})
 }
