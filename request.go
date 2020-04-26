@@ -18,8 +18,7 @@ import (
 )
 
 type request struct {
-	request  *http.Request
-	response http.ResponseWriter
+	request *http.Request
 
 	actionName         string
 	callerID           string
@@ -39,14 +38,12 @@ func (r *request) start() {
 	r.statDurations = map[string]time.Duration{}
 	r.statCounts = map[string]int64{}
 	r.startTime = agent.opts.Clock.Now()
-	r.callerID = r.request.Header.Get("X-Logjam-Caller-Id")
-	r.callerAction = r.request.Header.Get("X-Logjam-Action")
 	r.uuid = generateUUID()
 	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
-	header := r.response.Header()
-	header.Set("X-Logjam-Request-Id", r.id)
-	header.Set("X-Logjam-Action", r.actionName)
-	header.Set("X-Logjam-Caller-Id", r.callerID)
+	if r.request != nil {
+		r.callerID = r.request.Header.Get("X-Logjam-Caller-Id")
+		r.callerAction = r.request.Header.Get("X-Logjam-Action")
+	}
 }
 
 func (r *request) log(severity LogLevel, line string) {
@@ -118,7 +115,7 @@ type message struct {
 	RequestID    string                 `json:"request_id"`
 	CallerID     string                 `json:"caller_id,omitempty"`
 	CallerAction string                 `json:"caller_action,omitempty"`
-	RequestInfo  map[string]interface{} `json:"request_info"`
+	RequestInfo  map[string]interface{} `json:"request_info,omitempty"`
 	StartedAt    string                 `json:"started_at"`
 	StartedMS    int64                  `json:"started_ms"`
 	Severity     LogLevel               `json:"severity"`
@@ -201,6 +198,9 @@ func ifEnv(name string, fn func(string)) {
 }
 
 func (r *request) info() map[string]interface{} {
+	if r.request == nil {
+		return nil
+	}
 	info := map[string]interface{}{
 		"method": r.request.Method,
 		"url":    r.request.URL.String(),

@@ -61,11 +61,16 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 }
 
 func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	r := m.newRequest(req, res)
+	r := m.newRequest(req)
 	req = r.request.WithContext(context.WithValue(req.Context(), requestKey, r))
 	r.request = req
 
 	r.start()
+
+	header := res.Header()
+	header.Set("X-Logjam-Request-Id", r.id)
+	header.Set("X-Logjam-Action", r.actionName)
+	header.Set("X-Logjam-Caller-Id", r.callerID)
 
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -78,11 +83,10 @@ func (m *middleware) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	r.finish(metrics)
 }
 
-func (m *middleware) newRequest(req *http.Request, res http.ResponseWriter) *request {
+func (m *middleware) newRequest(req *http.Request) *request {
 	return &request{
 		actionName: m.ActionNameExtractor(req),
 		request:    req,
-		response:   res,
 		logLines:   []interface{}{},
 	}
 }

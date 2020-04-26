@@ -109,7 +109,7 @@ func TestNewRequest(t *testing.T) {
 			router := mux.NewRouter()
 			options := &MiddlewareOptions{}
 			mw := NewMiddleware(router, options).(*middleware)
-			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil), httptest.NewRecorder())
+			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil))
 
 			So(logjamRequest.actionName, ShouldEqual, "Some#action")
 		})
@@ -122,7 +122,7 @@ func TestNewRequest(t *testing.T) {
 				},
 			}
 			mw := NewMiddleware(router, options).(*middleware)
-			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil), httptest.NewRecorder())
+			logjamRequest := mw.newRequest(httptest.NewRequest("GET", "/some/action", nil))
 
 			So(logjamRequest.actionName, ShouldEqual, "GET::such::generated")
 		})
@@ -371,8 +371,7 @@ func TestSetLogjamHeaders(t *testing.T) {
 			},
 		}).(*middleware)
 		incoming := httptest.NewRequest("GET", "/", nil)
-		res := httptest.NewRecorder()
-		wrapped := mw.newRequest(incoming, res)
+		wrapped := mw.newRequest(incoming)
 		wrapped.start()
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)
