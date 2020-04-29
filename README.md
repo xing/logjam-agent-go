@@ -1,10 +1,13 @@
 # Logjam client for Go
 
+[![GoDoc](https://godoc.org/github.com/xing/logjam-agent-go?status.svg)](https://godoc.org/github.com/xing/logjam-agent-go)
+
 This package provides integration with the [Logjam](https://github.com/skaes/logjam_core)
 monitoring tool for Go web-applications.
 
-It buffers all log output for a request and sends the result to a configured AMQP broker
+It buffers all log output for a request and sends the result to a configured logjam device
 when the request was finished.
+
 
 ## Requirements
 This package depends on [github.com/pebbe/zmq4](https://github.com/pebbe/zmq4) which
