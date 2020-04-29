@@ -64,7 +64,7 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := m.ActionNameExtractor(r)
-	logjamRequest := newRequest(action)
+	logjamRequest := NewRequest(action)
 	r = r.WithContext(context.WithValue(r.Context(), requestKey, logjamRequest))
 
 	logjamRequest.request = r
@@ -165,7 +165,7 @@ func ignoredHeader(r *http.Request, name string) bool {
 func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 	requestValue := hasContext.Context().Value(requestKey)
 
-	if incoming, ok := requestValue.(*request); ok {
+	if incoming, ok := requestValue.(*Request); ok {
 		if outgoing.Header == nil {
 			outgoing.Header = http.Header{}
 		}

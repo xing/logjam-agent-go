@@ -15,7 +15,8 @@ import (
 	"github.com/felixge/httpsnoop"
 )
 
-type request struct {
+// Request encapsulates information about the current logjam request.
+type Request struct {
 	request *http.Request
 
 	actionName         string
@@ -34,11 +35,10 @@ type request struct {
 	ip                 string
 }
 
-// newRequest creates a new logjam request for a given action name and http request. Pass
-// in nil as http request if this is form a background process.
-func newRequest(action string) *request {
-	r := request{
-		actionName:    action,
+// NewRequest creates a new logjam request for a given action name.
+func NewRequest(actionName string) *Request {
+	r := Request{
+		actionName:    actionName,
 		logLines:      []interface{}{},
 		statDurations: map[string]time.Duration{},
 		statCounts:    map[string]int64{},
@@ -49,7 +49,7 @@ func newRequest(action string) *request {
 	return &r
 }
 
-func (r *request) log(severity LogLevel, line string) {
+func (r *Request) log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
 	}
@@ -68,7 +68,7 @@ func (r *request) log(severity LogLevel, line string) {
 	}
 }
 
-func (r *request) addCount(key string, value int64) {
+func (r *Request) addCount(key string, value int64) {
 	if v, set := r.statCounts[key]; set {
 		r.statCounts[key] = v + value
 	} else {
@@ -76,7 +76,7 @@ func (r *request) addCount(key string, value int64) {
 	}
 }
 
-func (r *request) addDuration(key string, value time.Duration) {
+func (r *Request) addDuration(key string, value time.Duration) {
 	if _, set := r.statDurations[key]; set {
 		r.statDurations[key] += value
 	} else {
@@ -84,12 +84,12 @@ func (r *request) addDuration(key string, value time.Duration) {
 	}
 }
 
-func (r *request) finishWithPanic(recovered interface{}) {
+func (r *Request) finishWithPanic(recovered interface{}) {
 	r.log(FATAL, fmt.Sprintf("%#v", recovered))
 	r.finish(httpsnoop.Metrics{Code: 500})
 }
 
-func (r *request) finish(metrics httpsnoop.Metrics) {
+func (r *Request) finish(metrics httpsnoop.Metrics) {
 	r.endTime = agent.opts.Clock.Now()
 
 	payload := r.payloadMessage(metrics.Code)
@@ -160,7 +160,7 @@ func (m *message) setCounts(counts map[string]int64) {
 	}
 }
 
-func (r *request) payloadMessage(code int) *message {
+func (r *Request) payloadMessage(code int) *message {
 	msg := &message{
 		Action:       r.actionName,
 		Code:         code,

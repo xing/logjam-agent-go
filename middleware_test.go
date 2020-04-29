@@ -177,7 +177,7 @@ func TestLog(t *testing.T) {
 		})
 
 		Convey("truncating lines", func() {
-			r := request{}
+			r := Request{}
 			overflow := (maxBytesAllLines / maxLineLength)
 			for i := 0; i < overflow*2; i++ {
 				r.log(DEBUG, strings.Repeat("x", maxLineLength))
@@ -344,7 +344,7 @@ func TestMiddleware(t *testing.T) {
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
 		incoming := httptest.NewRequest("GET", "/", nil)
-		wrapped := newRequest("foobar")
+		wrapped := NewRequest("foobar")
 		wrapped.request = incoming
 		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
 		outgoing := httptest.NewRequest("GET", "/", nil)

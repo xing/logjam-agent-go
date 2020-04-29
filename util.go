@@ -126,7 +126,7 @@ type HasContext interface {
 // If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
 // Maximum line length is 2048 characters.
 func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	if request, ok := c.Context().Value(requestKey).(*Request); ok {
 		request.log(severity, fmt.Sprintf(format, args...))
 	}
 }
@@ -163,21 +163,21 @@ func LogUnknown(c HasContext, format string, args ...interface{}) {
 
 // Count behaves like AddCount with a value of 1
 func Count(c HasContext, key string) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	if request, ok := c.Context().Value(requestKey).(*Request); ok {
 		request.addCount(key, 1)
 	}
 }
 
 // AddCount adds the given value to the logjam counter for this key.
 func AddCount(c HasContext, key string, value int64) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	if request, ok := c.Context().Value(requestKey).(*Request); ok {
 		request.addCount(key, value)
 	}
 }
 
 // AddDuration is for accumulating the elapsed time between calls.
 func AddDuration(c HasContext, key string, value time.Duration) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	if request, ok := c.Context().Value(requestKey).(*Request); ok {
 		request.addDuration(key, value)
 	}
 }
@@ -186,7 +186,7 @@ func AddDuration(c HasContext, key string, value time.Duration) {
 // function for you, in cases where this is not useful just use AddDuration
 // instead.
 func AddDurationFunc(c HasContext, key string, f func()) {
-	if request, ok := c.Context().Value(requestKey).(*request); ok {
+	if request, ok := c.Context().Value(requestKey).(*Request); ok {
 		beginning := agent.opts.Clock.Now()
 		defer func() { request.addDuration(key, agent.opts.Clock.Now().Sub(beginning)) }()
 	}
