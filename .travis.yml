@@ -7,3 +7,4 @@ language: go
 go:
   - 1.13.10
   - 1.14.2
+script: make test
