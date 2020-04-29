@@ -1,6 +1,9 @@
+dist: bionic
+addons:
+  apt:
+    packages:
+      - libzmq3-dev
 language: go
 go:
   - 1.13.10
   - 1.14.2
-before_script:
-  - apt-get install libzmq5
