@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"net"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -87,6 +84,12 @@ func actionNameParts(method, path string) []string {
 	return parts
 }
 
+const maxLineLength = 2048
+const maxBytesAllLines = 1024 * 1024
+const timeFormat = "2006-01-02T15:04:05.000000"
+const lineTruncated = " ... [LINE TRUNCATED]"
+const linesTruncated = "... [LINES DROPPED]"
+
 func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
 	if len(message) > maxLineLength {
 		message = message[0:maxLineLength-len(lineTruncated)] + lineTruncated
@@ -111,6 +114,18 @@ func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
 		request.log(severity, fmt.Sprintf(format, args...))
 	}
 }
+
+type LogLevel int
+
+// DEBUG log level
+const (
+	DEBUG   LogLevel = iota
+	INFO    LogLevel = iota
+	WARN    LogLevel = iota
+	ERROR   LogLevel = iota
+	FATAL   LogLevel = iota
+	UNKNOWN LogLevel = iota
+)
 
 // LogInfo calls Log with DEBUG severity
 func LogDebug(c HasContext, format string, args ...interface{}) {
@@ -140,44 +155,4 @@ func LogFatal(c HasContext, format string, args ...interface{}) {
 // LogUnknown calls Log with UNKNOWN severity
 func LogUnknown(c HasContext, format string, args ...interface{}) {
 	Log(c, UNKNOWN, format, args...)
-}
-
-var ipv4Mask = net.CIDRMask(24, 32)
-var ipv4Replacer = regexp.MustCompile(`0+\z`)
-var ipv6Mask = net.CIDRMask(112, 128)
-
-func obfuscateIP(ip string) string {
-	parsed := net.ParseIP(ip)
-	if parsed == nil {
-		return ip
-	} else if v4 := parsed.To4(); v4 != nil {
-		masked := v4.Mask(ipv4Mask).String()
-		return ipv4Replacer.ReplaceAllString(masked, "XXX")
-	} else if v6 := parsed.To16(); v6 != nil {
-		masked := v6.Mask(ipv6Mask).String()
-		return ipv4Replacer.ReplaceAllString(masked, "XXXX")
-	}
-
-	return ip
-}
-
-func ipv4for(host string) (net.IP, error) {
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, err
-	}
-
-	var ip net.IP
-	for _, possibleIP := range ips {
-		if possibleIP.To4() != nil {
-			ip = possibleIP.To4()
-			break
-		}
-	}
-
-	if ip == nil {
-		return nil, errors.New("Couldn't resolve any IPv4 for " + host)
-	}
-
-	return ip, nil
 }

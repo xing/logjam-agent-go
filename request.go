@@ -50,6 +50,17 @@ func NewRequest(actionName string) *Request {
 	return &r
 }
 
+type contextKey int
+
+const (
+	requestKey contextKey = iota
+)
+
+// NewContext creates a new context with the request added.
+func (r *Request) NewContext(c context.Context) context.Context {
+	return context.WithValue(c, requestKey, r)
+}
+
 // GetRequest retrieves a logjam request from a Context. Returns nil of no request is
 // stored in the context.
 func GetRequest(c context.Context) *Request {

@@ -1,37 +1,13 @@
 package logjam
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"regexp"
 
 	"github.com/felixge/httpsnoop"
-)
-
-const maxLineLength = 2048
-const maxBytesAllLines = 1024 * 1024
-const timeFormat = "2006-01-02T15:04:05.000000"
-const lineTruncated = " ... [LINE TRUNCATED]"
-const linesTruncated = "... [LINES DROPPED]"
-
-type contextKey int
-
-const (
-	requestKey contextKey = iota
-)
-
-type LogLevel int
-
-// DEBUG log level
-const (
-	DEBUG   LogLevel = iota
-	INFO    LogLevel = iota
-	WARN    LogLevel = iota
-	ERROR   LogLevel = iota
-	FATAL   LogLevel = iota
-	UNKNOWN LogLevel = iota
 )
 
 // ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
@@ -65,7 +41,7 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := m.ActionNameExtractor(r)
 	logjamRequest := NewRequest(action)
-	r = r.WithContext(context.WithValue(r.Context(), requestKey, logjamRequest))
+	r = r.WithContext(logjamRequest.NewContext(r.Context()))
 
 	logjamRequest.request = r
 	logjamRequest.callerID = r.Header.Get("X-Logjam-Caller-Id")
@@ -158,6 +134,46 @@ func requestHeaders(r *http.Request) map[string]string {
 func ignoredHeader(r *http.Request, name string) bool {
 	return hiddenHeaders.MatchString(name) ||
 		(name == "Content-Length" && r.ContentLength <= 0)
+}
+
+var ipv4Mask = net.CIDRMask(24, 32)
+var ipv4Replacer = regexp.MustCompile(`0+\z`)
+var ipv6Mask = net.CIDRMask(112, 128)
+
+func obfuscateIP(ip string) string {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return ip
+	} else if v4 := parsed.To4(); v4 != nil {
+		masked := v4.Mask(ipv4Mask).String()
+		return ipv4Replacer.ReplaceAllString(masked, "XXX")
+	} else if v6 := parsed.To16(); v6 != nil {
+		masked := v6.Mask(ipv6Mask).String()
+		return ipv4Replacer.ReplaceAllString(masked, "XXXX")
+	}
+
+	return ip
+}
+
+func ipv4for(host string) (net.IP, error) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, err
+	}
+
+	var ip net.IP
+	for _, possibleIP := range ips {
+		if possibleIP.To4() != nil {
+			ip = possibleIP.To4()
+			break
+		}
+	}
+
+	if ip == nil {
+		return nil, errors.New("Couldn't resolve any IPv4 for " + host)
+	}
+
+	return ip, nil
 }
 
 // SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing
