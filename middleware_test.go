@@ -15,7 +15,6 @@ import (
 
 	"log"
 
-	"github.com/facebookgo/clock"
 	"github.com/gorilla/mux"
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
@@ -23,24 +22,23 @@ import (
 
 func TestPackInfo(t *testing.T) {
 	Convey("Binary header", t, func() {
-		mockClock := clock.NewMock()
-		mockClock.Add(time.Duration(1519659204000000000))
+		t := time.Unix(1000000000, 1000)
 
-		So(packInfo(mockClock, math.MaxUint64), ShouldResemble, []byte{
+		So(packInfo(t, math.MaxUint64), ShouldResemble, []byte{
 			202, 189, // tag
 			0,          // compression method
 			1,          // version
 			0, 0, 0, 0, // device
-			0, 0, 1, 97, 210, 191, 61, 160, // time
+			0, 0, 0, 232, 212, 165, 16, 0, // time
 			255, 255, 255, 255, 255, 255, 255, 255, // sequence
 		})
 
-		So(unpackInfo(packInfo(mockClock, math.MaxUint64)), ShouldResemble, &metaInfo{
+		So(unpackInfo(packInfo(t, 123456789)), ShouldResemble, &metaInfo{
 			Tag:          metaInfoTag,
 			Version:      metaInfoVersion,
 			DeviceNumber: metaInfoDeviceNumber,
-			TimeStamp:    uint64(mockClock.Now().In(timeLocation).UnixNano() / 1000000),
-			Sequence:     math.MaxUint64,
+			TimeStamp:    uint64(t.UnixNano() / 1000000),
+			Sequence:     123456789,
 		})
 	})
 }
@@ -104,7 +102,7 @@ func TestActionNameExtractor(t *testing.T) {
 }
 
 func TestLogjamHelpers(t *testing.T) {
-	now := time.Date(2345, 11, 28, 23, 45, 50, 123456789, timeLocation)
+	now := time.Date(2345, 11, 28, 23, 45, 50, 123456789, time.Now().Location())
 	nowString := "2345-11-28T23:45:50.123456"
 
 	Convey("Logjam helpers", t, func() {
@@ -161,16 +159,16 @@ func TestLog(t *testing.T) {
 		So(UNKNOWN, ShouldEqual, 5)
 	})
 
-	mockClock := clock.NewMock()
+	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
 
 	Convey("formatLine", t, func() {
-		line := formatLine(DEBUG, mockClock.Now(), strings.Repeat("x", maxLineLength))
+		line := formatLine(DEBUG, now, strings.Repeat("x", maxLineLength))
 		So(line[0].(int), ShouldEqual, DEBUG)
 		So(line[1].(string), ShouldEqual, "1970-01-01T01:00:00.000000")
 		So(line[2].(string), ShouldEqual, strings.Repeat("x", maxLineLength))
 
 		Convey("truncating message", func() {
-			line := formatLine(DEBUG, mockClock.Now(), strings.Repeat("x", 2050))
+			line := formatLine(DEBUG, now, strings.Repeat("x", 2050))
 			So(line[0].(int), ShouldEqual, DEBUG)
 			So(line[1].(string), ShouldEqual, "1970-01-01T01:00:00.000000")
 			So(line[2].(string), ShouldEqual, strings.Repeat("x", 2027)+lineTruncated)
@@ -200,28 +198,19 @@ func TestMiddleware(t *testing.T) {
 	os.Setenv("NAMESPACE", "logjam")
 	setRequestEnv()
 
-	mockClock := clock.NewMock()
-	now := time.Duration(1519659204000000000)
-	mockClock.Add(now)
-
 	router := mux.NewRouter()
 
 	router.Path("/rest/e-recruiting-api/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		mockClock.Add(1 * time.Second)
 		Log(req, UNKNOWN, "First Line")
-		mockClock.Add(1 * time.Second)
 		Log(req, FATAL, "Second Line")
-		mockClock.Add(1 * time.Second)
 		Log(req, ERROR, "Third Line")
-		mockClock.Add(1 * time.Second)
 		Log(req, WARN, "Fourth Line")
-		mockClock.Add(1 * time.Second)
 		Log(req, INFO, "Sixth Line")
 
 		AddCount(req, "RestCalls", 1)
 		AddDuration(req, "RestTime", 5*time.Second)
 		AddDurationFunc(req, "ViewTime", func() {
-			mockClock.Add(5 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))
 		})
@@ -234,7 +223,6 @@ func TestMiddleware(t *testing.T) {
 		Endpoints: "127.0.0.1,localhost",
 		AppName:   "appName",
 		EnvName:   "envName",
-		Clock:     mockClock,
 		Logger:    logger,
 	}
 	SetupAgent(&agentOptions)
@@ -263,7 +251,10 @@ func TestMiddleware(t *testing.T) {
 		query.Add("multi", "value2")
 		req.URL.RawQuery = query.Encode()
 		So(err, ShouldBeNil)
+
+		now := time.Now()
 		res, err := server.Client().Do(req)
+
 		So(err, ShouldBeNil)
 		So(res.StatusCode, ShouldEqual, 200)
 		requestID := res.Header.Get("X-Logjam-Request-Id")
@@ -289,13 +280,17 @@ func TestMiddleware(t *testing.T) {
 		So(output["ip"], ShouldEqual, "127.0.0.XXX")
 		So(output["process_id"].(float64), ShouldNotEqual, 0)
 		So(output["request_id"], ShouldEqual, uuid)
-		So(output["started_at"], shouldHaveTimeFormat, time.RFC3339)
-		So(output["started_at"], ShouldEqual, "2018-02-26T16:33:24+01:00")
-		So(output["started_ms"], ShouldAlmostEqual, float64(now)/1000000) // this test will fail after 2286-11-20
-		So(output["total_time"], ShouldEqual, 10000)
+		So(output["started_at"], shouldHaveTimeFormat, timeFormat)
+		startedAt, err := time.ParseInLocation(timeFormat, output["started_at"].(string), now.Location())
+		So(err, ShouldBeNil)
+		So(uint64(startedAt.UnixNano()/1000000), ShouldEqual, output["started_ms"])
+		So(output["started_ms"], ShouldAlmostEqual, uint64(now.UnixNano()/1000000), 100)
+		So(output["total_time"], ShouldBeGreaterThan, 100)
+		So(output["total_time"], ShouldAlmostEqual, 100, 10)
 		So(output["rest_calls"], ShouldEqual, 1)
 		So(output["rest_time"], ShouldEqual, 5000)
-		So(output["view_time"], ShouldEqual, 5000)
+		So(output["view_time"], ShouldBeGreaterThanOrEqualTo, 100)
+		So(output["total_time"], ShouldAlmostEqual, 100, 5)
 		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
@@ -330,13 +325,12 @@ func TestMiddleware(t *testing.T) {
 		So(line, ShouldHaveLength, 3)
 		So(line[0], ShouldEqual, UNKNOWN) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
-		So(line[1], ShouldEqual, "2018-02-26T16:33:25.000000")
 		So(line[2], ShouldEqual, "First Line")
 
 		line = lines[1].([]interface{})
 		So(line, ShouldHaveLength, 3)
 		So(line[0], ShouldEqual, FATAL) // severity
-		So(line[1], ShouldEqual, "2018-02-26T16:33:26.000000")
+		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "Second Line")
 	})
 }

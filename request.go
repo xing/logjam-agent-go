@@ -43,7 +43,7 @@ func NewRequest(actionName string) *Request {
 		statDurations: map[string]time.Duration{},
 		statCounts:    map[string]int64{},
 	}
-	r.startTime = agent.opts.Clock.Now()
+	r.startTime = time.Now()
 	r.uuid = generateUUID()
 	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
 	return &r
@@ -62,9 +62,9 @@ func (r *Request) log(severity LogLevel, line string) {
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
 	if r.logLinesBytesCount < maxBytesAllLines {
-		r.logLines = append(r.logLines, formatLine(severity, agent.opts.Clock.Now(), line))
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line))
 	} else {
-		r.logLines = append(r.logLines, formatLine(severity, agent.opts.Clock.Now(), linesTruncated))
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated))
 	}
 }
 
@@ -90,7 +90,7 @@ func (r *Request) finishWithPanic(recovered interface{}) {
 }
 
 func (r *Request) finish(metrics httpsnoop.Metrics) {
-	r.endTime = agent.opts.Clock.Now()
+	r.endTime = time.Now()
 
 	payload := r.payloadMessage(metrics.Code)
 
@@ -172,7 +172,7 @@ func (r *Request) payloadMessage(code int) *message {
 		CallerAction: r.callerAction,
 		RequestInfo:  r.info,
 		Severity:     r.severity,
-		StartedAt:    r.startTime.In(timeLocation).Format(time.RFC3339),
+		StartedAt:    r.startTime.Format(timeFormat),
 		StartedMS:    r.startTime.UnixNano() / 1000000,
 		TotalTime:    durationBetween(r.startTime, r.endTime),
 		Host:         host,

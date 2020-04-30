@@ -6,14 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/facebookgo/clock"
 )
 
 const (
@@ -32,28 +28,13 @@ type metaInfo struct {
 	Sequence          uint64
 }
 
-var timeLocation *time.Location
-
-func init() {
-	tz := os.Getenv("TZ")
-	if tz == "" {
-		tz = "Europe/Berlin"
-	}
-	location, err := time.LoadLocation(tz)
-	if err != nil {
-		log.Panicf("Couldn't load timezone data for %s: %s\n", tz, err.Error())
-	}
-	timeLocation = location
-}
-
-func packInfo(clock clock.Clock, i uint64) []byte {
-	zClockTime := clock.Now().In(timeLocation)
+func packInfo(t time.Time, i uint64) []byte {
 	input := &metaInfo{
 		Tag:               metaInfoTag,
 		CompressionMethod: metaCompressionMethod,
 		Version:           metaInfoVersion,
 		DeviceNumber:      metaInfoDeviceNumber,
-		TimeStamp:         uint64(zClockTime.UnixNano() / 1000000),
+		TimeStamp:         uint64(t.UnixNano() / 1000000),
 		Sequence:          i,
 	}
 
@@ -114,7 +95,7 @@ func formatLine(severity LogLevel, timeStamp time.Time, message string) []interf
 }
 
 func formatTime(timeStamp time.Time) string {
-	return timeStamp.In(timeLocation).Format(timeFormat)
+	return timeStamp.Format(timeFormat)
 }
 
 // HasContext is any object that reponds to the Context method.
@@ -187,8 +168,8 @@ func AddDuration(c HasContext, key string, value time.Duration) {
 // instead.
 func AddDurationFunc(c HasContext, key string, f func()) {
 	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		beginning := agent.opts.Clock.Now()
-		defer func() { request.addDuration(key, agent.opts.Clock.Now().Sub(beginning)) }()
+		beginning := time.Now()
+		defer func() { request.addDuration(key, time.Now().Sub(beginning)) }()
 	}
 	f()
 }

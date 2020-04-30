@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/facebookgo/clock"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -27,17 +26,16 @@ var agent struct {
 
 // AgentOptions such as appliction name, environment and ZeroMQ oscket options.
 type AgentOptions struct {
-	AppName   string      // Name of your application
-	EnvName   string      // What environment you're running in (production, preview, ...)
-	Endpoints string      // Comma separated list of ZeroMQ connections specs, defaults to localhost
-	Port      int         // ZeroMQ default port for ceonnection specs
-	Linger    int         // ZeroMQ socket option of the same name
-	Sndhwm    int         // ZeroMQ socket option of the same name
-	Rcvhwm    int         // ZeroMQ socket option of the same name
-	Sndtimeo  int         // ZeroMQ socket option of the same name
-	Rcvtimeo  int         // ZeroMQ socket option of the same name
-	Clock     clock.Clock // Abomination
-	Logger    Logger      // TODO: why is this an option?
+	AppName   string // Name of your application
+	EnvName   string // What environment you're running in (production, preview, ...)
+	Endpoints string // Comma separated list of ZeroMQ connections specs, defaults to localhost
+	Port      int    // ZeroMQ default port for ceonnection specs
+	Linger    int    // ZeroMQ socket option of the same name
+	Sndhwm    int    // ZeroMQ socket option of the same name
+	Rcvhwm    int    // ZeroMQ socket option of the same name
+	Sndtimeo  int    // ZeroMQ socket option of the same name
+	Rcvtimeo  int    // ZeroMQ socket option of the same name
+	Logger    Logger // TODO: why is this an option?
 }
 
 // Logger must provide some methods to let Logjam output its logs.
@@ -52,9 +50,6 @@ var logger Logger
 func SetupAgent(options *AgentOptions) {
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
-	if options.Clock == nil {
-		options.Clock = clock.New()
-	}
 	if options.Logger == nil {
 		options.Logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 	}
@@ -160,7 +155,7 @@ func sendMessage(msg []byte) {
 		agent.socket = setupSocket(agent.endpoints[n])
 	}
 	agent.sequence++
-	meta := packInfo(agent.opts.Clock, agent.sequence)
+	meta := packInfo(time.Now(), agent.sequence)
 	_, err := agent.socket.SendMessage(agent.stream, agent.topic, msg, meta)
 	if err != nil {
 		logger.Println(err)
