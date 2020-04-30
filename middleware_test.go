@@ -207,9 +207,10 @@ func TestMiddleware(t *testing.T) {
 		Log(req, WARN, "Fourth Line")
 		Log(req, INFO, "Sixth Line")
 
-		AddCount(req, "RestCalls", 1)
-		AddDuration(req, "RestTime", 5*time.Second)
-		AddDurationFunc(req, "ViewTime", func() {
+		r := GetRequest(req.Context())
+		r.AddCount("RestCalls", 1)
+		r.AddDuration("RestTime", 5*time.Second)
+		r.MeasureDuration("ViewTime", func() {
 			time.Sleep(100 * time.Millisecond)
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))

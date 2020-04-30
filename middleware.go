@@ -93,7 +93,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	metrics := httpsnoop.CaptureMetrics(m.handler, w, r)
 
 	logjamRequest.info = requestInfo(r)
-	logjamRequest.finish(metrics)
+	logjamRequest.Finish(metrics)
 }
 
 func requestInfo(r *http.Request) map[string]interface{} {

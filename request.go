@@ -1,6 +1,7 @@
 package logjam
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -49,6 +50,16 @@ func NewRequest(actionName string) *Request {
 	return &r
 }
 
+// GetRequest retrieves a logjam request from a Context. Returns nil of no request is
+// stored in the context.
+func GetRequest(c context.Context) *Request {
+	v, ok := c.Value(requestKey).(*Request)
+	if ok {
+		return v
+	}
+	return nil
+}
+
 func (r *Request) log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
@@ -68,15 +79,18 @@ func (r *Request) log(severity LogLevel, line string) {
 	}
 }
 
-func (r *Request) addCount(key string, value int64) {
-	if v, set := r.statCounts[key]; set {
-		r.statCounts[key] = v + value
-	} else {
-		r.statCounts[key] = value
-	}
+// AddCount increments a counter metric associated with this request.
+func (r *Request) AddCount(key string, value int64) {
+	r.statCounts[key] += value
 }
 
-func (r *Request) addDuration(key string, value time.Duration) {
+// Count behaves like AddCount with a value of 1
+func (r *Request) Count(key string) {
+	r.AddCount(key, 1)
+}
+
+// AddDuration increases increments a timer metric associated with this request.
+func (r *Request) AddDuration(key string, value time.Duration) {
 	if _, set := r.statDurations[key]; set {
 		r.statDurations[key] += value
 	} else {
@@ -84,12 +98,21 @@ func (r *Request) addDuration(key string, value time.Duration) {
 	}
 }
 
-func (r *Request) finishWithPanic(recovered interface{}) {
-	r.log(FATAL, fmt.Sprintf("%#v", recovered))
-	r.finish(httpsnoop.Metrics{Code: 500})
+// MeasureDuration is a helper function that records the duration of execution of the
+// passed function in cases where it is cumbersome to just use AddDuration instead.
+func (r *Request) MeasureDuration(key string, f func()) {
+	beginning := time.Now()
+	defer func() { r.AddDuration(key, time.Now().Sub(beginning)) }()
+	f()
 }
 
-func (r *Request) finish(metrics httpsnoop.Metrics) {
+func (r *Request) finishWithPanic(recovered interface{}) {
+	r.log(FATAL, fmt.Sprintf("%#v", recovered))
+	r.Finish(httpsnoop.Metrics{Code: 500})
+}
+
+// Finish adds the response code to the requests and sends it to logjam.
+func (r *Request) Finish(metrics httpsnoop.Metrics) {
 	r.endTime = time.Now()
 
 	payload := r.payloadMessage(metrics.Code)
@@ -183,6 +206,10 @@ func (r *Request) payloadMessage(code int) *message {
 	msg.setDurations(r.statDurations)
 	msg.setCounts(r.statCounts)
 	return msg
+}
+
+func durationBetween(start, end time.Time) float64 {
+	return float64(end.Sub(start)) / float64(time.Millisecond)
 }
 
 var (

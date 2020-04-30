@@ -142,42 +142,6 @@ func LogUnknown(c HasContext, format string, args ...interface{}) {
 	Log(c, UNKNOWN, format, args...)
 }
 
-// Count behaves like AddCount with a value of 1
-func Count(c HasContext, key string) {
-	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		request.addCount(key, 1)
-	}
-}
-
-// AddCount adds the given value to the logjam counter for this key.
-func AddCount(c HasContext, key string, value int64) {
-	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		request.addCount(key, value)
-	}
-}
-
-// AddDuration is for accumulating the elapsed time between calls.
-func AddDuration(c HasContext, key string, value time.Duration) {
-	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		request.addDuration(key, value)
-	}
-}
-
-// AddDurationFunc is a helper function that records the duration of the passed
-// function for you, in cases where this is not useful just use AddDuration
-// instead.
-func AddDurationFunc(c HasContext, key string, f func()) {
-	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		beginning := time.Now()
-		defer func() { request.addDuration(key, time.Now().Sub(beginning)) }()
-	}
-	f()
-}
-
-func durationBetween(start, end time.Time) float64 {
-	return float64(end.Sub(start)) / float64(time.Millisecond)
-}
-
 var ipv4Mask = net.CIDRMask(24, 32)
 var ipv4Replacer = regexp.MustCompile(`0+\z`)
 var ipv6Mask = net.CIDRMask(112, 128)
