@@ -39,9 +39,8 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := m.ActionNameExtractor(r)
 	logjamRequest := NewRequest(action)
-	r = r.WithContext(logjamRequest.NewContext(r.Context()))
+	r = logjamRequest.AugmentRequest(r)
 
-	logjamRequest.request = r
 	logjamRequest.callerID = r.Header.Get("X-Logjam-Caller-Id")
 	logjamRequest.callerAction = r.Header.Get("X-Logjam-Action")
 

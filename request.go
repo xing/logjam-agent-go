@@ -17,7 +17,6 @@ import (
 // Request encapsulates information about the current logjam request.
 type Request struct {
 	Action             string                   // The action name for this request.
-	request            *http.Request            // Associated HTTP request (nil if this is a background request).
 	uuid               string                   // Request id as sent to logjam (version 4 UUID).
 	id                 string                   // Request id as sent to called applications (app-env-uuid).
 	callerID           string                   // Request id of the caller (if any).
@@ -58,6 +57,11 @@ const (
 // NewContext creates a new context with the request added.
 func (r *Request) NewContext(c context.Context) context.Context {
 	return context.WithValue(c, requestKey, r)
+}
+
+// AugmentRequest extends a given http request with a logjam request stored in its context.
+func (r *Request) AugmentRequest(incoming *http.Request) *http.Request {
+	return incoming.WithContext(r.NewContext(incoming.Context()))
 }
 
 // GetRequest retrieves a logjam request from a Context. Returns nil of no request is

@@ -1,7 +1,6 @@
 package logjam
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -341,13 +340,12 @@ func TestMiddleware(t *testing.T) {
 func TestSetLogjamHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
 		incoming := httptest.NewRequest("GET", "/", nil)
-		wrapped := NewRequest("foobar")
-		wrapped.request = incoming
-		incomingW := incoming.WithContext(context.WithValue(incoming.Context(), requestKey, wrapped))
+		logjamRequest := NewRequest("foobar")
+		wrapped := logjamRequest.AugmentRequest(incoming)
 		outgoing := httptest.NewRequest("GET", "/", nil)
-		SetLogjamHeaders(incomingW, outgoing)
+		SetLogjamHeaders(wrapped, outgoing)
 		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "foobar")
-		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, wrapped.id)
+		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, logjamRequest.id)
 	})
 }
 
