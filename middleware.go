@@ -31,9 +31,7 @@ func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handle
 		MiddlewareOptions: options,
 	}
 	if m.ActionNameExtractor == nil {
-		m.ActionNameExtractor = func(r *http.Request) string {
-			return actionNameFrom(r.Method, r.URL.EscapedPath())
-		}
+		m.ActionNameExtractor = LegacyActionNameExtractor
 	}
 	return m
 }
