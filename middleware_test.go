@@ -14,6 +14,7 @@ import (
 
 	"log"
 
+	"github.com/golang/snappy"
 	"github.com/gorilla/mux"
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,19 +26,20 @@ func TestPackInfo(t *testing.T) {
 
 		So(packInfo(t, math.MaxUint64), ShouldResemble, []byte{
 			202, 189, // tag
-			0,          // compression method
-			1,          // version
-			0, 0, 0, 0, // device
+			metaInfoCompressionMethod, // compression method
+			1,                         // version
+			0, 0, 0, 0,                // device
 			0, 0, 0, 232, 212, 165, 16, 0, // time
 			255, 255, 255, 255, 255, 255, 255, 255, // sequence
 		})
 
 		So(unpackInfo(packInfo(t, 123456789)), ShouldResemble, &metaInfo{
-			Tag:          metaInfoTag,
-			Version:      metaInfoVersion,
-			DeviceNumber: metaInfoDeviceNumber,
-			Timestamp:    uint64(t.UnixNano() / 1000000),
-			Sequence:     123456789,
+			Tag:               metaInfoTag,
+			CompressionMethod: metaInfoCompressionMethod,
+			Version:           metaInfoVersion,
+			DeviceNumber:      metaInfoDeviceNumber,
+			Timestamp:         uint64(t.UnixNano() / 1000000),
+			Sequence:          123456789,
 		})
 	})
 }
@@ -273,8 +275,11 @@ func TestMiddleware(t *testing.T) {
 		So(msg[1], ShouldEqual, agentOptions.AppName+"-"+agentOptions.EnvName)
 		So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
 
+		payload, err := snappy.Decode(nil, []byte(msg[3]))
+		So(err, ShouldBeNil)
+
 		output := map[string]interface{}{}
-		json.Unmarshal([]byte(msg[3]), &output)
+		json.Unmarshal([]byte(payload), &output)
 
 		So(output["action"], ShouldEqual, actionName)
 		So(output["host"], ShouldEqual, "test-machine")

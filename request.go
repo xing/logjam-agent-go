@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/felixge/httpsnoop"
+	"github.com/golang/snappy"
 )
 
 // Request encapsulates information about the current logjam request.
@@ -136,8 +137,8 @@ func (r *Request) Finish(metrics httpsnoop.Metrics) {
 		logger.Println(err)
 		return
 	}
-
-	sendMessage(buf)
+	data := snappy.Encode(nil, buf)
+	sendMessage(data)
 }
 
 func (r *Request) logjamPayload(code int) map[string]interface{} {

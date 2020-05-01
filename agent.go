@@ -164,10 +164,10 @@ func sendMessage(msg []byte) {
 }
 
 const (
-	metaInfoTag           = 0xcabd
-	metaInfoDeviceNumber  = 0
-	metaInfoVersion       = 1
-	metaCompressionMethod = 0
+	metaInfoTag               = 0xcabd
+	metaInfoDeviceNumber      = 0
+	metaInfoVersion           = 1
+	metaInfoCompressionMethod = 2 // snappy
 )
 
 type metaInfo struct {
@@ -182,7 +182,7 @@ type metaInfo struct {
 func packInfo(t time.Time, i uint64) []byte {
 	data := make([]byte, 24)
 	binary.BigEndian.PutUint16(data, metaInfoTag)
-	data[2] = metaCompressionMethod
+	data[2] = metaInfoCompressionMethod
 	data[3] = metaInfoVersion
 	binary.BigEndian.PutUint32(data[4:8], metaInfoDeviceNumber)
 	binary.BigEndian.PutUint64(data[8:16], uint64(t.UnixNano()/1000000))
