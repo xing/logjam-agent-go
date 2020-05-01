@@ -117,11 +117,6 @@ func (r *Request) MeasureDuration(key string, f func()) {
 	f()
 }
 
-func (r *Request) finishWithPanic(recovered interface{}) {
-	r.log(FATAL, fmt.Sprintf("%#v", recovered))
-	r.Finish(httpsnoop.Metrics{Code: 500})
-}
-
 // Finish adds the response code to the requests and sends it to logjam.
 func (r *Request) Finish(metrics httpsnoop.Metrics) {
 	r.endTime = time.Now()
