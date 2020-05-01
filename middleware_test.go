@@ -208,9 +208,10 @@ func TestMiddleware(t *testing.T) {
 		Log(req, INFO, "Sixth Line")
 
 		r := GetRequest(req.Context())
-		r.AddCount("RestCalls", 1)
-		r.AddDuration("RestTime", 5*time.Second)
-		r.MeasureDuration("ViewTime", func() {
+		r.AddCount("rest_calls", 1)
+		r.AddDuration("rest_time", 5*time.Second)
+		r.SetField("sender_id", "foobar")
+		r.MeasureDuration("view_time", func() {
 			time.Sleep(100 * time.Millisecond)
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))
@@ -295,6 +296,7 @@ func TestMiddleware(t *testing.T) {
 		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
+		So(output["sender_id"], ShouldEqual, "foobar")
 
 		requestInfo := output["request_info"].(map[string]interface{})
 		So(requestInfo["method"], ShouldEqual, "GET")

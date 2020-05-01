@@ -54,7 +54,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	header := w.Header()
 	header.Set("X-Logjam-Request-Id", logjamRequest.id)
-	header.Set("X-Logjam-Action", logjamRequest.actionName)
+	header.Set("X-Logjam-Action", logjamRequest.Action)
 	header.Set("X-Logjam-Caller-Id", logjamRequest.callerID)
 
 	defer func() {
@@ -185,7 +185,7 @@ func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
 			outgoing.Header = http.Header{}
 		}
 		outgoing.Header.Set("X-Logjam-Caller-Id", incoming.id)
-		outgoing.Header.Set("X-Logjam-Action", incoming.actionName)
+		outgoing.Header.Set("X-Logjam-Action", incoming.Action)
 	} else {
 		if logger != nil {
 			logger.Println("couldn't set required outgoing headers, expect call sequence issues.\n",

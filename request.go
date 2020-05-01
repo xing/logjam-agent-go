@@ -5,12 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/felixge/httpsnoop"
@@ -18,35 +16,36 @@ import (
 
 // Request encapsulates information about the current logjam request.
 type Request struct {
-	request *http.Request
-
-	actionName         string
-	callerID           string
-	callerAction       string
-	uuid               string
-	id                 string
-	startTime          time.Time
-	endTime            time.Time
-	logLinesBytesCount int
-	logLines           []interface{}
-	statDurations      map[string]time.Duration
-	statCounts         map[string]int64
-	severity           LogLevel
-	info               map[string]interface{}
-	ip                 string
+	Action             string                   // The action name for this request.
+	request            *http.Request            // Associated HTTP request (nil if this is a background request).
+	uuid               string                   // Request id as sent to logjam (version 4 UUID).
+	id                 string                   // Request id as sent to called applications (app-env-uuid).
+	callerID           string                   // Request id of the caller (if any).
+	callerAction       string                   // Action name of the caller (if any).
+	startTime          time.Time                // Start time of this request.
+	endTime            time.Time                // Completion time of this request.
+	durations          map[string]time.Duration // Time metrics.
+	counts             map[string]int64         // Counters.
+	logLines           []interface{}            // Log lines.
+	logLinesBytesCount int                      // Byte size of logged lines.
+	severity           LogLevel                 // Max log severity over all log lines.
+	fields             map[string]interface{}   // Additional kye vale pairs for JSON payload sent to logjam.
+	info               map[string]interface{}   // Information about the associated HTTP request.
+	ip                 string                   // IP of the HTTP request originator.
 }
 
 // NewRequest creates a new logjam request for a given action name.
-func NewRequest(actionName string) *Request {
+func NewRequest(action string) *Request {
 	r := Request{
-		actionName:    actionName,
-		logLines:      []interface{}{},
-		statDurations: map[string]time.Duration{},
-		statCounts:    map[string]int64{},
+		Action:    action,
+		durations: map[string]time.Duration{},
+		counts:    map[string]int64{},
+		fields:    map[string]interface{}{},
+		logLines:  []interface{}{},
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
-	r.id = fmt.Sprintf("%s-%s-%s", agent.opts.AppName, agent.opts.EnvName, r.uuid)
+	r.id = agent.opts.AppName + "-" + agent.opts.EnvName + "-" + r.uuid
 	return &r
 }
 
@@ -90,9 +89,14 @@ func (r *Request) log(severity LogLevel, line string) {
 	}
 }
 
+// SetField sets an additional key value pair on the request.
+func (r *Request) SetField(key string, value interface{}) {
+	r.fields[key] = value
+}
+
 // AddCount increments a counter metric associated with this request.
 func (r *Request) AddCount(key string, value int64) {
-	r.statCounts[key] += value
+	r.counts[key] += value
 }
 
 // Count behaves like AddCount with a value of 1
@@ -102,10 +106,10 @@ func (r *Request) Count(key string) {
 
 // AddDuration increases increments a timer metric associated with this request.
 func (r *Request) AddDuration(key string, value time.Duration) {
-	if _, set := r.statDurations[key]; set {
-		r.statDurations[key] += value
+	if _, set := r.durations[key]; set {
+		r.durations[key] += value
 	} else {
-		r.statDurations[key] = value
+		r.durations[key] = value
 	}
 }
 
@@ -121,7 +125,7 @@ func (r *Request) MeasureDuration(key string, f func()) {
 func (r *Request) Finish(metrics httpsnoop.Metrics) {
 	r.endTime = time.Now()
 
-	payload := r.payloadMessage(metrics.Code)
+	payload := r.logjamPayload(metrics.Code)
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
@@ -132,108 +136,69 @@ func (r *Request) Finish(metrics httpsnoop.Metrics) {
 	sendMessage(buf)
 }
 
-type message struct {
-	Action       string                 `json:"action"`
-	Code         int                    `json:"code"`
-	Host         string                 `json:"host"`
-	IP           string                 `json:"ip,omitempty"`
-	Lines        []interface{}          `json:"lines,omitempty"`
-	ProcessID    int                    `json:"process_id"`
-	RequestID    string                 `json:"request_id"`
-	CallerID     string                 `json:"caller_id,omitempty"`
-	CallerAction string                 `json:"caller_action,omitempty"`
-	RequestInfo  map[string]interface{} `json:"request_info,omitempty"`
-	StartedAt    string                 `json:"started_at"`
-	StartedMS    int64                  `json:"started_ms"`
-	Severity     LogLevel               `json:"severity"`
-	UserID       int64                  `json:"user_id"`
-	Cluster      string                 `json:"cluster,omitempty"`
-	Datacenter   string                 `json:"datacenter,omitempty"`
-	Namespace    string                 `json:"namespace,omitempty"`
-
-	DbTime       float64 `json:"db_time"`
-	GcTime       float64 `json:"gc_time"`
-	MemcacheTime float64 `json:"memcache_time"`
-	OtherTime    float64 `json:"other_time"`
-	RestTime     float64 `json:"rest_time"`
-	TotalTime    float64 `json:"total_time"`
-	ViewTime     float64 `json:"view_time"`
-	WaitTime     float64 `json:"wait_time"`
-
-	AllocatedBytes   int64 `json:"allocated_bytes"`
-	AllocatedMemory  int64 `json:"allocated_memory"`
-	AllocatedObjects int64 `json:"allocated_objects"`
-	DbCalls          int64 `json:"db_calls"`
-	HeapSize         int64 `json:"heap_size"`
-	LiveDataSetSize  int64 `json:"live_data_set_size"`
-	MemcacheCalls    int64 `json:"memcache_calls"`
-	MemcacheMisses   int64 `json:"memcache_misses"`
-	MemcacheReads    int64 `json:"memcache_reads"`
-	MemcacheWrites   int64 `json:"memcache_writes"`
-	ResponseCode     int64 `json:"response_code"`
-	RestCalls        int64 `json:"rest_calls"`
-	RestQueueRuns    int64 `json:"rest_queue_runs"`
-}
-
-func (m *message) setDurations(durations map[string]time.Duration) {
-	v := reflect.ValueOf(m).Elem()
-	for key, duration := range durations {
-		v.FieldByName(key).SetFloat(float64(duration / time.Millisecond))
+func (r *Request) logjamPayload(code int) map[string]interface{} {
+	msg := map[string]interface{}{
+		"action":     r.Action,
+		"code":       code,
+		"process_id": os.Getpid(),
+		"request_id": r.uuid,
+		"severity":   r.severity,
+		"started_at": r.startTime.Format(timeFormat),
+		"started_ms": r.startTime.UnixNano() / 1000000,
+		"total_time": r.totalTime(),
 	}
-}
-
-func (m *message) setCounts(counts map[string]int64) {
-	v := reflect.ValueOf(m).Elem()
-	for key, count := range counts {
-		v.FieldByName(key).SetInt(count)
+	if len(r.logLines) > 0 {
+		msg["lines"] = r.logLines
 	}
-}
-
-func (r *Request) payloadMessage(code int) *message {
-	msg := &message{
-		Action:       r.actionName,
-		Code:         code,
-		IP:           r.ip,
-		Lines:        r.logLines,
-		ProcessID:    os.Getpid(),
-		RequestID:    r.uuid,
-		CallerID:     r.callerID,
-		CallerAction: r.callerAction,
-		RequestInfo:  r.info,
-		Severity:     r.severity,
-		StartedAt:    r.startTime.Format(timeFormat),
-		StartedMS:    r.startTime.UnixNano() / 1000000,
-		TotalTime:    durationBetween(r.startTime, r.endTime),
-		Host:         host,
-		Datacenter:   datacenter,
-		Cluster:      cluster,
-		Namespace:    namespace,
+	if len(r.info) > 0 {
+		msg["request_info"] = r.info
 	}
-	msg.setDurations(r.statDurations)
-	msg.setCounts(r.statCounts)
+	if r.ip != "" {
+		msg["ip"] = r.ip
+	}
+	if r.callerID != "" {
+		msg["caller_id"] = r.callerID
+	}
+	if r.callerAction != "" {
+		msg["caller_action"] = r.callerAction
+	}
+	for key, val := range requestEnv {
+		msg[key] = val
+	}
+	for key, duration := range r.durations {
+		msg[key] = float64(duration / time.Millisecond)
+	}
+	for key, count := range r.counts {
+		msg[key] = count
+	}
+	for key, val := range r.fields {
+		msg[key] = val
+	}
 	return msg
 }
 
-func durationBetween(start, end time.Time) float64 {
-	return float64(end.Sub(start)) / float64(time.Millisecond)
+func (r *Request) totalTime() float64 {
+	return float64(r.endTime.Sub(r.startTime)) / float64(time.Millisecond)
 }
 
-var (
-	host       string
-	datacenter string
-	cluster    string
-	namespace  string
-)
+var requestEnv = make(map[string]string, 0)
 
 func init() {
 	setRequestEnv()
 }
 
 func setRequestEnv() {
-	host = os.Getenv("HOSTNAME")
-	cluster = os.Getenv("CLUSTER")
-	datacenter = os.Getenv("DATACENTER")
-	namespace = os.Getenv("NAMESPACE")
+	m := map[string]string{
+		"host":       "HOSTNAME",
+		"cluster":    "CLUSTER",
+		"datacenter": "DATACENTER",
+		"namespace":  "NAMESPACE",
+	}
+	for key, envVarName := range m {
+		if v := os.Getenv(envVarName); v != "" {
+			requestEnv[key] = v
+		}
+	}
 }
 
 // generateUUID provides a Logjam compatible UUID, which means it doesn't adhere to the
