@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -27,17 +28,21 @@ var agent struct {
 
 // AgentOptions such as appliction name, environment and ZeroMQ oscket options.
 type AgentOptions struct {
-	AppName   string // Name of your application
-	EnvName   string // What environment you're running in (production, preview, ...)
-	Endpoints string // Comma separated list of ZeroMQ connections specs, defaults to localhost
-	Port      int    // ZeroMQ default port for ceonnection specs
-	Linger    int    // ZeroMQ socket option of the same name
-	Sndhwm    int    // ZeroMQ socket option of the same name
-	Rcvhwm    int    // ZeroMQ socket option of the same name
-	Sndtimeo  int    // ZeroMQ socket option of the same name
-	Rcvtimeo  int    // ZeroMQ socket option of the same name
-	Logger    Logger // TODO: why is this an option?
+	AppName             string              // Name of your application
+	EnvName             string              // What environment you're running in (production, preview, ...)
+	Endpoints           string              // Comma separated list of ZeroMQ connections specs, defaults to localhost
+	Port                int                 // ZeroMQ default port for ceonnection specs
+	Linger              int                 // ZeroMQ socket option of the same name
+	Sndhwm              int                 // ZeroMQ socket option of the same name
+	Rcvhwm              int                 // ZeroMQ socket option of the same name
+	Sndtimeo            int                 // ZeroMQ socket option of the same name
+	Rcvtimeo            int                 // ZeroMQ socket option of the same name
+	Logger              Logger              // TODO: why is this an option?
+	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 }
+
+// ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
+type ActionNameExtractor func(*http.Request) string
 
 // Logger must provide some methods to let Logjam output its logs.
 type Logger interface {
@@ -55,6 +60,9 @@ func SetupAgent(options *AgentOptions) {
 		options.Logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 	}
 	logger = options.Logger
+	if options.ActionNameExtractor == nil {
+		options.ActionNameExtractor = LegacyActionNameExtractor
+	}
 	options.setDefaults()
 	agent.opts = options
 	agent.stream = options.AppName + "-" + options.EnvName

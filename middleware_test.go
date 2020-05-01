@@ -2,7 +2,6 @@ package logjam
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -44,59 +43,40 @@ func TestPackInfo(t *testing.T) {
 	})
 }
 
-func extractActionName(mw *middleware, method string, path string) string {
-	return mw.ActionNameExtractor(httptest.NewRequest(method, path, nil))
-}
-
 func TestActionNameExtractor(t *testing.T) {
 	Convey("ActionNameExtractor", t, func() {
-		router := mux.NewRouter()
-		Convey("when set uses it", func() {
-			options := &MiddlewareOptions{
-				ActionNameExtractor: func(r *http.Request) string {
-					return fmt.Sprintf("%s_userdefined", r.Method)
-				},
-			}
-			mw := NewMiddleware(router, options).(*middleware)
-
-			So(extractActionName(mw, "GET", "/some/path"), ShouldEqual, "GET_userdefined")
-		})
-
-		Convey("when unset uses default", func() {
-			options := &MiddlewareOptions{}
-			mw := NewMiddleware(router, options).(*middleware)
-
-			So(extractActionName(mw, "GET", "/swagger/index.html"), ShouldEqual,
+		Convey("extracting action names", func() {
+			So(actionNameFrom("GET", "/swagger/index.html"), ShouldEqual,
 				"Swagger#index.html")
 
 			// URLs starting with _system will be ignored.
-			So(extractActionName(mw, "GET", "/_system/alive"), ShouldEqual,
+			So(actionNameFrom("GET", "/_system/alive"), ShouldEqual,
 				"_system#alive")
 
 			v1 := "/rest/e-recruiting-api/vendor/v1/"
-			So(extractActionName(mw, "GET", v1+"industries"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"industries"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#industries")
-			So(extractActionName(mw, "GET", v1+"users/1234_foobar"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"users/1234_foobar"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET::Users#by_id")
-			So(extractActionName(mw, "GET", v1+"users"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"users"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#users")
-			So(extractActionName(mw, "GET", v1+"countries"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"countries"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#countries")
-			So(extractActionName(mw, "GET", v1+"disciplines"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"disciplines"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#disciplines")
-			So(extractActionName(mw, "GET", v1+"facets/4567"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"facets/4567"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET::Facets#by_id")
-			So(extractActionName(mw, "GET", v1+"employment-statuses"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"employment-statuses"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#employment_statuses")
-			So(extractActionName(mw, "DELETE", v1+"chats/123_fo"), ShouldEqual,
+			So(actionNameFrom("DELETE", v1+"chats/123_fo"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::DELETE::Chats#by_id")
-			So(extractActionName(mw, "GET", v1+"chats/456_bar"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"chats/456_bar"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET::Chats#by_id")
-			So(extractActionName(mw, "GET", v1+"chats"), ShouldEqual,
+			So(actionNameFrom("GET", v1+"chats"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::GET#chats")
-			So(extractActionName(mw, "POST", v1+"chats"), ShouldEqual,
+			So(actionNameFrom("POST", v1+"chats"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::POST#chats")
-			So(extractActionName(mw, "PATCH", v1+"chats/123_baz"), ShouldEqual,
+			So(actionNameFrom("PATCH", v1+"chats/123_baz"), ShouldEqual,
 				"Rest::ERecruitingApi::Vendor::V1::PATCH::Chats#by_id")
 		})
 	})
@@ -239,7 +219,7 @@ func TestMiddleware(t *testing.T) {
 	SetupAgent(&agentOptions)
 	defer ShutdownAgent()
 
-	server := httptest.NewServer(NewMiddleware(router, &MiddlewareOptions{}))
+	server := httptest.NewServer(NewMiddleware(router))
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {

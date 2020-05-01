@@ -37,7 +37,7 @@ Inside your code create a middleware like this:
 
 ```go
 func logjamMiddleware(next http.Handler) http.Handler {
-	return logjam.NewMiddleware(next, &logjam.MiddlewareOptions{})
+	return logjam.NewMiddleware(next)
 }
 ```
 

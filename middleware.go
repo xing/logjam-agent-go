@@ -10,34 +10,17 @@ import (
 	"github.com/felixge/httpsnoop"
 )
 
-// ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
-type ActionNameExtractor func(*http.Request) string
-
-// MiddlewareOptions can be passed to NewMiddleware.
-type MiddlewareOptions struct {
-	ActionNameExtractor ActionNameExtractor
-}
-
 type middleware struct {
-	*MiddlewareOptions
 	handler http.Handler
 }
 
-// NewMiddleware can be used to wrap any standard http.Handler with the given
-// MiddlewareOptions.
-func NewMiddleware(handler http.Handler, options *MiddlewareOptions) http.Handler {
-	m := &middleware{
-		handler:           handler,
-		MiddlewareOptions: options,
-	}
-	if m.ActionNameExtractor == nil {
-		m.ActionNameExtractor = LegacyActionNameExtractor
-	}
-	return m
+// NewMiddleware can be used to wrap any standard http.Handler.
+func NewMiddleware(handler http.Handler) http.Handler {
+	return &middleware{handler: handler}
 }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	action := m.ActionNameExtractor(r)
+	action := agent.opts.ActionNameExtractor(r)
 	logjamRequest := NewRequest(action)
 	r = logjamRequest.AugmentRequest(r)
 
