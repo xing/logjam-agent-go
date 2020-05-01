@@ -99,6 +99,11 @@ func (r *Request) SetField(key string, value interface{}) {
 	r.fields[key] = value
 }
 
+// GetField retrieves sets an additional key value pair on the request.
+func (r *Request) GetField(key string) interface{} {
+	return r.fields[key]
+}
+
 // AddCount increments a counter metric associated with this request.
 func (r *Request) AddCount(key string, value int64) {
 	r.counts[key] += value

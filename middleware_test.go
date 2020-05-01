@@ -147,6 +147,14 @@ func TestObfuscateIP(t *testing.T) {
 	})
 }
 
+func TestSettingFields(t *testing.T) {
+	Convey("Setting fields", t, func() {
+		r := NewRequest("foo")
+		r.SetField("foo", "bar")
+		So(r.GetField("foo"), ShouldEqual, "bar")
+	})
+}
+
 func TestLog(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
 	SetupAgent(&AgentOptions{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
