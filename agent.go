@@ -1,7 +1,6 @@
 package logjam
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -176,28 +175,32 @@ type metaInfo struct {
 	CompressionMethod uint8
 	Version           uint8
 	DeviceNumber      uint32
-	TimeStamp         uint64
+	Timestamp         uint64
 	Sequence          uint64
 }
 
 func packInfo(t time.Time, i uint64) []byte {
-	input := &metaInfo{
-		Tag:               metaInfoTag,
-		CompressionMethod: metaCompressionMethod,
-		Version:           metaInfoVersion,
-		DeviceNumber:      metaInfoDeviceNumber,
-		TimeStamp:         uint64(t.UnixNano() / 1000000),
-		Sequence:          i,
-	}
-
-	buf := bytes.NewBuffer(nil)
-	binary.Write(buf, binary.BigEndian, input)
-	return buf.Bytes()
+	data := make([]byte, 24)
+	binary.BigEndian.PutUint16(data, metaInfoTag)
+	data[2] = metaCompressionMethod
+	data[3] = metaInfoVersion
+	binary.BigEndian.PutUint32(data[4:8], metaInfoDeviceNumber)
+	binary.BigEndian.PutUint64(data[8:16], uint64(t.UnixNano()/1000000))
+	binary.BigEndian.PutUint64(data[16:24], i)
+	return data
 }
 
-func unpackInfo(info []byte) *metaInfo {
-	output := &metaInfo{}
-	buf := bytes.NewBuffer(info)
-	binary.Read(buf, binary.BigEndian, output)
-	return output
+func unpackInfo(data []byte) *metaInfo {
+	if len(data) != 24 {
+		return nil
+	}
+	info := &metaInfo{
+		Tag:               binary.BigEndian.Uint16(data[0:2]),
+		CompressionMethod: data[2],
+		Version:           data[3],
+		DeviceNumber:      binary.BigEndian.Uint32(data[4:8]),
+		Timestamp:         binary.BigEndian.Uint64(data[8:16]),
+		Sequence:          binary.BigEndian.Uint64(data[16:24]),
+	}
+	return info
 }

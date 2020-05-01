@@ -36,7 +36,7 @@ func TestPackInfo(t *testing.T) {
 			Tag:          metaInfoTag,
 			Version:      metaInfoVersion,
 			DeviceNumber: metaInfoDeviceNumber,
-			TimeStamp:    uint64(t.UnixNano() / 1000000),
+			Timestamp:    uint64(t.UnixNano() / 1000000),
 			Sequence:     123456789,
 		})
 	})
