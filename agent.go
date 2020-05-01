@@ -1,6 +1,8 @@
 package logjam
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math/rand"
@@ -160,4 +162,42 @@ func sendMessage(msg []byte) {
 	if err != nil {
 		logger.Println(err)
 	}
+}
+
+const (
+	metaInfoTag           = 0xcabd
+	metaInfoDeviceNumber  = 0
+	metaInfoVersion       = 1
+	metaCompressionMethod = 0
+)
+
+type metaInfo struct {
+	Tag               uint16
+	CompressionMethod uint8
+	Version           uint8
+	DeviceNumber      uint32
+	TimeStamp         uint64
+	Sequence          uint64
+}
+
+func packInfo(t time.Time, i uint64) []byte {
+	input := &metaInfo{
+		Tag:               metaInfoTag,
+		CompressionMethod: metaCompressionMethod,
+		Version:           metaInfoVersion,
+		DeviceNumber:      metaInfoDeviceNumber,
+		TimeStamp:         uint64(t.UnixNano() / 1000000),
+		Sequence:          i,
+	}
+
+	buf := bytes.NewBuffer(nil)
+	binary.Write(buf, binary.BigEndian, input)
+	return buf.Bytes()
+}
+
+func unpackInfo(info []byte) *metaInfo {
+	output := &metaInfo{}
+	buf := bytes.NewBuffer(info)
+	binary.Read(buf, binary.BigEndian, output)
+	return output
 }
