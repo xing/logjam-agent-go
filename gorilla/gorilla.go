@@ -44,7 +44,27 @@ func sortRoutes() {
 	})
 }
 
+func maxRouteLength() int {
+	l := 0
+	for _, r := range routes {
+		template, _ := r.route.GetPathTemplate()
+		if len(template) > l {
+			l = len(template)
+		}
+	}
+	return l
+}
+
+func padRight(s string, l int) string {
+	n := len(s)
+	if n >= l {
+		return s
+	}
+	return s + strings.Repeat(" ", l-n)
+}
+
 func printRoutes() {
+	n := maxRouteLength()
 	fmt.Printf("\n============== logjam routes ===============\n")
 	for _, r := range routes {
 		methods, _ := r.route.GetMethods()
@@ -53,7 +73,7 @@ func printRoutes() {
 			ms = "ALL"
 		}
 		template, _ := r.route.GetPathTemplate()
-		fmt.Printf("%-10s %-50s %s\n", ms, template, r.actionName())
+		fmt.Printf("%-10s  %s  %s\n", ms, padRight(template, n), r.actionName())
 	}
 }
 
