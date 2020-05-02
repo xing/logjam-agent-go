@@ -29,6 +29,15 @@ type routeInfo struct {
 	appendMethod bool       // whether to append the HTTP method to the route
 }
 
+func routeSeen(route *mux.Route) bool {
+	for _, r := range routes {
+		if r.route == route {
+			return true
+		}
+	}
+	return false
+}
+
 func (ri *routeInfo) actionName() string {
 	if ri.appendMethod {
 		return ri.action + "#:method"
@@ -84,12 +93,15 @@ func printRoutes() {
 func SetupActionNameExtraction(r *mux.Router, options *Options) {
 	opts = options
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		action, appendMethod := actionName(route)
-		if options.CheckOnly {
-			routes = append(routes, routeInfo{action: action, route: route, appendMethod: appendMethod})
+		if routeSeen(route) {
+			return nil
 		}
+		action, appendMethod := actionName(route)
 		if action == "" {
 			return nil
+		}
+		if options.CheckOnly {
+			routes = append(routes, routeInfo{action: action, route: route, appendMethod: appendMethod})
 		}
 		route.Handler(handler{
 			action:       action,
