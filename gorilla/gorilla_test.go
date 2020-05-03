@@ -87,14 +87,14 @@ func TestGorillaNameExtraction(t *testing.T) {
 
 	Convey("setting up action name extraction using gorilla", t, func() {
 
-		SetupRoutes(router, &Options{CheckOnly: true})
+		SetupRoutes(router)
 		PrintRoutes(router)
 
 	})
 
 	Convey("defining action names using gorilla", t, func() {
 
-		SetupRoutes(router, &Options{})
+		SetupRoutes(router)
 
 		performAndCheck("GET", "/rest/users/123", 200, "Rest::Users#show")
 		performAndCheck("DELETE", "/rest/users/123", 200, "Rest::Users#destroy")

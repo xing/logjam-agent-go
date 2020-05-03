@@ -43,17 +43,11 @@ func ActionName(route *mux.Route, actionName string) {
 	})
 }
 
-// Options provides parameters to the gorilla mux.Route to logjam action name conversion.
-type Options struct {
-	ForceUniqueness bool // If true, setting up name extraction will panic when routes are not unique.
-	CheckOnly       bool // If true, just perfroms a dry run and prints the resulting routes.
-}
-
 // SetupRoutes traverses all routes of the given router and replaces handlers which have
 // no logjam action name attached yet handler with a new handler that uses an action name
 // derived from the path template to. It must be called after all routes have been set up
 // on the router.
-func SetupRoutes(r *mux.Router, options *Options) {
+func SetupRoutes(r *mux.Router) {
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		h := route.GetHandler()
 		if h == nil {
