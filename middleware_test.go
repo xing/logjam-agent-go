@@ -76,10 +76,11 @@ func TestMiddleware(t *testing.T) {
 	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
 
 	agentOptions := AgentOptions{
-		Endpoints: "127.0.0.1,localhost",
-		AppName:   "appName",
-		EnvName:   "envName",
-		Logger:    logger,
+		Endpoints:    "127.0.0.1,localhost",
+		AppName:      "appName",
+		EnvName:      "envName",
+		Logger:       logger,
+		ObfuscateIPs: true,
 	}
 	SetupAgent(&agentOptions)
 	defer ShutdownAgent()

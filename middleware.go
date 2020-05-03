@@ -31,8 +31,11 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		host = ""
 	}
-	// TODO: obfuscation should be optional
-	logjamRequest.ip = obfuscateIP(host)
+	if agent.opts.ObfuscateIPs {
+		logjamRequest.ip = obfuscateIP(host)
+	} else {
+		logjamRequest.ip = host
+	}
 
 	header := w.Header()
 	header.Set("X-Logjam-Request-Id", logjamRequest.id)

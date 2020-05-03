@@ -39,6 +39,7 @@ type AgentOptions struct {
 	Rcvtimeo            int                 // ZeroMQ socket option of the same name
 	Logger              Logger              // TODO: why is this an option?
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
+	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
 }
 
 // ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
