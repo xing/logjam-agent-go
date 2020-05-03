@@ -42,7 +42,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			logjamRequest.log(FATAL, fmt.Sprintf("%#v", recovered))
-			logjamRequest.Finish(httpsnoop.Metrics{Code: 500})
+			logjamRequest.Finish(500)
 			panic(recovered)
 		}
 	}()
@@ -50,7 +50,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	metrics := httpsnoop.CaptureMetrics(m.handler, w, r)
 
 	logjamRequest.info = requestInfo(r)
-	logjamRequest.Finish(metrics)
+	logjamRequest.Finish(metrics.Code)
 }
 
 func requestInfo(r *http.Request) map[string]interface{} {

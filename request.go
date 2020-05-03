@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/felixge/httpsnoop"
 	"github.com/golang/snappy"
 )
 
@@ -132,10 +131,10 @@ func (r *Request) MeasureDuration(key string, f func()) {
 }
 
 // Finish adds the response code to the requests and sends it to logjam.
-func (r *Request) Finish(metrics httpsnoop.Metrics) {
+func (r *Request) Finish(code int) {
 	r.endTime = time.Now()
 
-	payload := r.logjamPayload(metrics.Code)
+	payload := r.logjamPayload(code)
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
