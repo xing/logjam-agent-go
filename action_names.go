@@ -3,6 +3,8 @@ package logjam
 import (
 	"net/http"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // LegacyActionNameExtractor is an extractor used in older versions of this package. Use
@@ -11,15 +13,9 @@ func LegacyActionNameExtractor(r *http.Request) string {
 	return actionNameFrom(r.Method, r.URL.EscapedPath())
 }
 
-var ignoreActionNamePrefixes = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
-
 func ignoreActionName(s string) bool {
-	for _, prefix := range ignoreActionNamePrefixes {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
-	}
-	return false
+	r, _ := utf8.DecodeRuneInString(s)
+	return unicode.IsDigit(r)
 }
 
 func actionNameFrom(method, path string) string {
