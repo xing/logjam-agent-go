@@ -61,7 +61,7 @@ func SetupAgent(options *AgentOptions) {
 	}
 	logger = options.Logger
 	if options.ActionNameExtractor == nil {
-		options.ActionNameExtractor = LegacyActionNameExtractor
+		options.ActionNameExtractor = DefaultActionNameExtractor
 	}
 	options.setDefaults()
 	agent.opts = options

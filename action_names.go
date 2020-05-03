@@ -10,7 +10,7 @@ import (
 // LegacyActionNameExtractor is an extractor used in older versions of this package. Use
 // it if you want to keep old action names in Logjam.
 func LegacyActionNameExtractor(r *http.Request) string {
-	return actionNameFrom(r.Method, r.URL.EscapedPath())
+	return legacyActionNameFrom(r.Method, r.URL.EscapedPath())
 }
 
 func ignoreActionName(s string) bool {
@@ -18,14 +18,17 @@ func ignoreActionName(s string) bool {
 	return unicode.IsDigit(r)
 }
 
-func actionNameFrom(method, path string) string {
-	parts := actionNameParts(method, path)
-	class := strings.Replace(strings.Join(parts[0:len(parts)-1], "::"), "-", "", -1)
-	suffix := strings.Replace(strings.ToLower(parts[len(parts)-1]), "-", "_", -1)
+func legacyActionNameFrom(method, path string) string {
+	parts := legacyActionNameParts(method, path)
+	class := strings.ReplaceAll(strings.Join(parts[0:len(parts)-1], "::"), "-", "")
+	suffix := strings.ReplaceAll(strings.ToLower(parts[len(parts)-1]), "-", "_")
+	if class == "" {
+		class = "Unknown"
+	}
 	return class + "#" + suffix
 }
 
-func actionNameParts(method, path string) []string {
+func legacyActionNameParts(method, path string) []string {
 	splitPath := strings.Split(path, "/")
 	parts := []string{}
 	for _, part := range splitPath {
@@ -42,4 +45,41 @@ func actionNameParts(method, path string) []string {
 		}
 	}
 	return parts
+}
+
+// DefaultActionNameExtractor replaces slashes with "::" and camel cases the individual
+// path segments.
+func DefaultActionNameExtractor(r *http.Request) string {
+	return defaultActionNameFrom(r.Method, r.URL.EscapedPath())
+}
+
+func defaultActionNameFrom(method, path string) string {
+	parts := defaultActionNameParts(method, path)
+	class := strings.Join(parts, "::")
+	return class + "#" + strings.ToLower(method)
+}
+
+func defaultActionNameParts(method, path string) []string {
+	splitPath := strings.Split(path, "/")
+	parts := []string{}
+	for _, part := range splitPath {
+		if part == "" {
+			continue
+		}
+		if ignoreActionName(part) {
+			parts = append(parts, "Id")
+		} else {
+			parts = append(parts, formatSegment(part))
+		}
+	}
+	return parts
+}
+
+func formatSegment(s string) string {
+	s = strings.ReplaceAll(s, "_", "-")
+	parts := strings.Split(s, "-")
+	for i, s := range parts {
+		parts[i] = strings.Title(s)
+	}
+	return strings.Join(parts, "")
 }

@@ -2,7 +2,6 @@ package logjam
 
 import (
 	"encoding/json"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,87 +17,6 @@ import (
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func TestPackInfo(t *testing.T) {
-	Convey("Binary header", t, func() {
-		t := time.Unix(1000000000, 1000)
-
-		So(packInfo(t, math.MaxUint64), ShouldResemble, []byte{
-			202, 189, // tag
-			metaInfoCompressionMethod, // compression method
-			1,                         // version
-			0, 0, 0, 0,                // device
-			0, 0, 0, 232, 212, 165, 16, 0, // time
-			255, 255, 255, 255, 255, 255, 255, 255, // sequence
-		})
-
-		So(unpackInfo(packInfo(t, 123456789)), ShouldResemble, &metaInfo{
-			Tag:               metaInfoTag,
-			CompressionMethod: metaInfoCompressionMethod,
-			Version:           metaInfoVersion,
-			DeviceNumber:      metaInfoDeviceNumber,
-			Timestamp:         uint64(t.UnixNano() / 1000000),
-			Sequence:          123456789,
-		})
-	})
-}
-
-func TestActionNameExtractor(t *testing.T) {
-	Convey("ActionNameExtractor", t, func() {
-		Convey("extracting action names", func() {
-			So(actionNameFrom("GET", "/swagger/index.html"), ShouldEqual,
-				"Swagger#index.html")
-
-			// URLs starting with _system will be ignored.
-			So(actionNameFrom("GET", "/_system/alive"), ShouldEqual,
-				"_system#alive")
-
-			v1 := "/rest/e-recruiting-api/vendor/v1/"
-			So(actionNameFrom("GET", v1+"industries"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#industries")
-			So(actionNameFrom("GET", v1+"users/1234_foobar"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET::Users#by_id")
-			So(actionNameFrom("GET", v1+"users"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#users")
-			So(actionNameFrom("GET", v1+"countries"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#countries")
-			So(actionNameFrom("GET", v1+"disciplines"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#disciplines")
-			So(actionNameFrom("GET", v1+"facets/4567"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET::Facets#by_id")
-			So(actionNameFrom("GET", v1+"employment-statuses"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#employment_statuses")
-			So(actionNameFrom("DELETE", v1+"chats/123_fo"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::DELETE::Chats#by_id")
-			So(actionNameFrom("GET", v1+"chats/456_bar"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET::Chats#by_id")
-			So(actionNameFrom("GET", v1+"chats"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::GET#chats")
-			So(actionNameFrom("POST", v1+"chats"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::POST#chats")
-			So(actionNameFrom("PATCH", v1+"chats/123_baz"), ShouldEqual,
-				"Rest::ERecruitingApi::Vendor::V1::PATCH::Chats#by_id")
-		})
-	})
-}
-
-func TestLogjamHelpers(t *testing.T) {
-	now := time.Date(2345, 11, 28, 23, 45, 50, 123456789, time.Now().Location())
-	nowString := "2345-11-28T23:45:50.123456"
-
-	Convey("Logjam helpers", t, func() {
-		Convey("Formats time in logjam format", func() {
-			So(formatTime(now), ShouldEqual, nowString)
-		})
-
-		Convey("Creates a logjam compatible log line", func() {
-			line := formatLine(1, now, "Some text")
-			So(line[0], ShouldEqual, 1)
-			So(line[1], ShouldEqual, nowString)
-			So(line[2], ShouldEqual, "Some text")
-		})
-	})
-}
 
 func TestObfuscateIP(t *testing.T) {
 	Convey("Obfuscate IP", t, func() {
@@ -127,59 +45,6 @@ func TestObfuscateIP(t *testing.T) {
 	})
 }
 
-func TestSettingFields(t *testing.T) {
-	Convey("Setting fields", t, func() {
-		r := NewRequest("foo")
-		r.SetField("foo", "bar")
-		So(r.GetField("foo"), ShouldEqual, "bar")
-	})
-}
-
-func TestLog(t *testing.T) {
-	fs, _ := os.Open(os.DevNull)
-	SetupAgent(&AgentOptions{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
-
-	Convey("Log level values", t, func() {
-		So(DEBUG, ShouldEqual, 0)
-		So(INFO, ShouldEqual, 1)
-		So(WARN, ShouldEqual, 2)
-		So(ERROR, ShouldEqual, 3)
-		So(FATAL, ShouldEqual, 4)
-		So(UNKNOWN, ShouldEqual, 5)
-	})
-
-	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
-
-	Convey("formatLine", t, func() {
-		line := formatLine(DEBUG, now, strings.Repeat("x", maxLineLength))
-		So(line[0].(int), ShouldEqual, DEBUG)
-		So(line[1].(string), ShouldEqual, "1970-01-01T01:00:00.000000")
-		So(line[2].(string), ShouldEqual, strings.Repeat("x", maxLineLength))
-
-		Convey("truncating message", func() {
-			line := formatLine(DEBUG, now, strings.Repeat("x", 2050))
-			So(line[0].(int), ShouldEqual, DEBUG)
-			So(line[1].(string), ShouldEqual, "1970-01-01T01:00:00.000000")
-			So(line[2].(string), ShouldEqual, strings.Repeat("x", 2027)+lineTruncated)
-		})
-
-		Convey("truncating lines", func() {
-			r := Request{}
-			overflow := (maxBytesAllLines / maxLineLength)
-			for i := 0; i < overflow*2; i++ {
-				r.log(DEBUG, strings.Repeat("x", maxLineLength))
-			}
-			So(r.logLines, ShouldHaveLength, overflow+1)
-			So(r.logLines[overflow].([]interface{})[2], ShouldEqual, linesTruncated)
-		})
-	})
-}
-
-func TestMiddlewareOptionsInit(t *testing.T) {
-	Convey("new middleware", t, func() {
-	})
-}
-
 func TestMiddleware(t *testing.T) {
 	os.Setenv("HOSTNAME", "test-machine")
 	os.Setenv("DATACENTER", "dc")
@@ -189,7 +54,7 @@ func TestMiddleware(t *testing.T) {
 
 	router := mux.NewRouter()
 
-	router.Path("/rest/e-recruiting-api/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	router.Path("/rest/app/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		Log(req, UNKNOWN, "First Line")
 		Log(req, FATAL, "Second Line")
 		Log(req, ERROR, "Third Line")
@@ -231,9 +96,9 @@ func TestMiddleware(t *testing.T) {
 		}()
 
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
-		actionName := "Rest::ERecruitingApi::Vendor::V1::GET::Users#by_id"
+		actionName := "Rest::App::Vendor::V1::Users::Id#get"
 
-		req, err := http.NewRequest("GET", server.URL+"/rest/e-recruiting-api/vendor/v1/users/123", nil)
+		req, err := http.NewRequest("GET", server.URL+"/rest/app/vendor/v1/users/123", nil)
 		req.Header.Set("X-Logjam-Caller-Id", callerID)
 		req.Header.Set("Authorization", "4ec04124-bd41-49e2-9e30-5b189f5ca5f2")
 		query := req.URL.Query()
@@ -293,7 +158,7 @@ func TestMiddleware(t *testing.T) {
 		requestInfo := output["request_info"].(map[string]interface{})
 		So(requestInfo["method"], ShouldEqual, "GET")
 
-		So(requestInfo["url"], ShouldContainSubstring, "/rest/e-recruiting-api/vendor/v1/users/123")
+		So(requestInfo["url"], ShouldContainSubstring, "/rest/app/vendor/v1/users/123")
 		So(requestInfo["url"], ShouldContainSubstring, "multi=value1")
 		So(requestInfo["url"], ShouldContainSubstring, "multi=value2")
 		So(requestInfo["url"], ShouldContainSubstring, "single=value")
