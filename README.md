@@ -67,8 +67,8 @@ available from the request context:
 
 ```go
 func ShowFriends(w http.ResponseWriter, r *http.Request) {
-    request := logjam.GetRequest(r.Context())
-    request.Action = "Users#friends"
+	request := logjam.GetRequest(r.Context())
+	request.Action = "Users#friends"
 	fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
 })
 ```
