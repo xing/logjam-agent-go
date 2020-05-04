@@ -16,7 +16,7 @@ import (
 
 // Request encapsulates information about the current logjam request.
 type Request struct {
-	Action             string                   // The action name for this request.
+	action             string                   // The action name for this request.
 	uuid               string                   // Request id as sent to logjam (version 4 UUID).
 	id                 string                   // Request id as sent to called applications (app-env-uuid).
 	callerID           string                   // Request id of the caller (if any).
@@ -36,7 +36,7 @@ type Request struct {
 // NewRequest creates a new logjam request for a given action name.
 func NewRequest(action string) *Request {
 	r := Request{
-		Action:    action,
+		action:    action,
 		durations: map[string]time.Duration{},
 		counts:    map[string]int64{},
 		fields:    map[string]interface{}{},
@@ -62,6 +62,13 @@ func (r *Request) NewContext(c context.Context) context.Context {
 // AugmentRequest extends a given http request with a logjam request stored in its context.
 func (r *Request) AugmentRequest(incoming *http.Request) *http.Request {
 	return incoming.WithContext(r.NewContext(incoming.Context()))
+}
+
+// ChangeAction changes the action name and updates the corresponding header on the given
+// http request writer.
+func (r *Request) ChangeAction(w http.ResponseWriter, action string) {
+	r.action = action
+	w.Header().Set("X-Logjam-Action", action)
 }
 
 // GetRequest retrieves a logjam request from an object with Context. Returns nil if no
@@ -153,7 +160,7 @@ func (r *Request) Finish(code int) {
 
 func (r *Request) logjamPayload(code int) map[string]interface{} {
 	msg := map[string]interface{}{
-		"action":     r.Action,
+		"action":     r.action,
 		"code":       code,
 		"process_id": os.Getpid(),
 		"request_id": r.uuid,

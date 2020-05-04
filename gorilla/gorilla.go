@@ -19,9 +19,9 @@ type handler struct {
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logjamRequest := logjam.GetRequest(r)
-	if logjamRequest != nil {
-		logjamRequest.Action = h.actionName(r.Method)
+	request := logjam.GetRequest(r)
+	if request != nil {
+		request.ChangeAction(w, h.actionName(r.Method))
 	}
 	h.handler.ServeHTTP(w, r)
 }
