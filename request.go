@@ -78,6 +78,8 @@ func GetRequest(hc HasContext) *Request {
 func (r *Request) Log(severity LogLevel, line string) {
 	if severity > FATAL {
 		severity = FATAL
+	} else if severity < DEBUG {
+		severity = DEBUG
 	}
 	if r.severity < severity {
 		r.severity = severity
