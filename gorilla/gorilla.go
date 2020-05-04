@@ -83,7 +83,7 @@ func actionName(route *mux.Route) (string, bool) {
 }
 
 func formatSegment(s string) string {
-	s = strings.ReplaceAll(s, "_", "-")
+	s = strings.Replace(s, "_", "-", -1)
 	parts := strings.Split(s, "-")
 	for i, s := range parts {
 		parts[i] = strings.Title(s)
@@ -92,7 +92,7 @@ func formatSegment(s string) string {
 }
 
 func formatAction(s string) string {
-	return strings.ReplaceAll(s, "-", "_")
+	return strings.Replace(s, "-", "_", -1)
 }
 
 func actionNameParts(path string) ([]string, bool) {

@@ -20,8 +20,8 @@ func ignoreActionName(s string) bool {
 
 func legacyActionNameFrom(method, path string) string {
 	parts := legacyActionNameParts(method, path)
-	class := strings.ReplaceAll(strings.Join(parts[0:len(parts)-1], "::"), "-", "")
-	suffix := strings.ReplaceAll(strings.ToLower(parts[len(parts)-1]), "-", "_")
+	class := strings.Replace(strings.Join(parts[0:len(parts)-1], "::"), "-", "", -1)
+	suffix := strings.Replace(strings.ToLower(parts[len(parts)-1]), "-", "_", -1)
 	if class == "" {
 		class = "Unknown"
 	}
@@ -76,7 +76,7 @@ func defaultActionNameParts(method, path string) []string {
 }
 
 func formatSegment(s string) string {
-	s = strings.ReplaceAll(s, "_", "-")
+	s = strings.Replace(s, "_", "-", -1)
 	parts := strings.Split(s, "-")
 	for i, s := range parts {
 		parts[i] = strings.Title(s)
