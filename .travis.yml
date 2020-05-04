@@ -4,6 +4,8 @@ addons:
     packages:
       - libzmq3-dev
 language: go
+env:
+  - GO111MODULE=on
 go:
   - 1.11.13
   - 1.12.17
