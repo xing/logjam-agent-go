@@ -11,16 +11,15 @@ type HasContext interface {
 	Context() context.Context
 }
 
+// LogLevel (modeled afterRuby log levels).
 type LogLevel int
 
-// DEBUG log level
 const (
-	DEBUG   LogLevel = iota
-	INFO    LogLevel = iota
-	WARN    LogLevel = iota
-	ERROR   LogLevel = iota
-	FATAL   LogLevel = iota
-	UNKNOWN LogLevel = iota
+	DEBUG LogLevel = 0
+	INFO  LogLevel = 1
+	WARN  LogLevel = 2
+	ERROR LogLevel = 3
+	FATAL LogLevel = 4
 )
 
 // Log takes a context to be able to collect all logs within the same request.
@@ -28,7 +27,7 @@ const (
 // Maximum line length is 2048 characters.
 func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
 	if request, ok := c.Context().Value(requestKey).(*Request); ok {
-		request.log(severity, fmt.Sprintf(format, args...))
+		request.Log(severity, fmt.Sprintf(format, args...))
 	}
 }
 

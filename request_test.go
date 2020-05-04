@@ -65,15 +65,6 @@ func TestLog(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
 	SetupAgent(&AgentOptions{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
 
-	Convey("Log level values", t, func() {
-		So(DEBUG, ShouldEqual, 0)
-		So(INFO, ShouldEqual, 1)
-		So(WARN, ShouldEqual, 2)
-		So(ERROR, ShouldEqual, 3)
-		So(FATAL, ShouldEqual, 4)
-		So(UNKNOWN, ShouldEqual, 5)
-	})
-
 	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
 
 	Convey("formatLine", t, func() {
@@ -93,7 +84,7 @@ func TestLog(t *testing.T) {
 			r := Request{}
 			overflow := (maxBytesAllLines / maxLineLength)
 			for i := 0; i < overflow*2; i++ {
-				r.log(DEBUG, strings.Repeat("x", maxLineLength))
+				r.Log(DEBUG, strings.Repeat("x", maxLineLength))
 			}
 			So(r.logLines, ShouldHaveLength, overflow+1)
 			So(r.logLines[overflow].([]interface{})[2], ShouldEqual, linesTruncated)

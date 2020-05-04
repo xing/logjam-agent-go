@@ -55,7 +55,7 @@ func TestMiddleware(t *testing.T) {
 	router := mux.NewRouter()
 
 	router.Path("/rest/app/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		Log(req, UNKNOWN, "First Line")
+		Log(req, 500, "First Line")
 		Log(req, FATAL, "Second Line")
 		Log(req, ERROR, "Third Line")
 		Log(req, WARN, "Fourth Line")
@@ -150,7 +150,7 @@ func TestMiddleware(t *testing.T) {
 		So(output["rest_calls"], ShouldEqual, 1)
 		So(output["rest_time"], ShouldEqual, 5000)
 		So(output["view_time"], ShouldBeGreaterThanOrEqualTo, 100)
-		So(output["total_time"], ShouldAlmostEqual, 100, 5)
+		So(output["total_time"], ShouldAlmostEqual, 100, 10)
 		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
@@ -184,7 +184,7 @@ func TestMiddleware(t *testing.T) {
 
 		line := lines[0].([]interface{})
 		So(line, ShouldHaveLength, 3)
-		So(line[0], ShouldEqual, UNKNOWN) // severity
+		So(line[0], ShouldEqual, FATAL) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "First Line")
 

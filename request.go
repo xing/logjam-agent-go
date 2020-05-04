@@ -51,7 +51,7 @@ func NewRequest(action string) *Request {
 type contextKey int
 
 const (
-	requestKey contextKey = iota
+	requestKey contextKey = 0
 )
 
 // NewContext creates a new context with the request added.
@@ -74,7 +74,11 @@ func GetRequest(c context.Context) *Request {
 	return nil
 }
 
-func (r *Request) log(severity LogLevel, line string) {
+// Log adds a log line to be sent to logjam to the request.
+func (r *Request) Log(severity LogLevel, line string) {
+	if severity > FATAL {
+		severity = FATAL
+	}
 	if r.severity < severity {
 		r.severity = severity
 	}
