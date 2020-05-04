@@ -19,7 +19,7 @@ type handler struct {
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logjamRequest := logjam.GetRequest(r.Context())
+	logjamRequest := logjam.GetRequest(r)
 	if logjamRequest != nil {
 		logjamRequest.Action = h.actionName(r.Method)
 	}

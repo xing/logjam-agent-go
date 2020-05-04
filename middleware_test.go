@@ -61,7 +61,7 @@ func TestMiddleware(t *testing.T) {
 		Log(req, WARN, "Fourth Line")
 		Log(req, INFO, "Sixth Line")
 
-		r := GetRequest(req.Context())
+		r := GetRequest(req)
 		r.AddCount("rest_calls", 1)
 		r.AddDuration("rest_time", 5*time.Second)
 		r.SetField("sender_id", "foobar")

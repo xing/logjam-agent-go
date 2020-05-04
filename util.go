@@ -32,28 +32,28 @@ func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
 }
 
 // LogDebug calls Log with DEBUG severity.
-func LogDebug(c HasContext, format string, args ...interface{}) {
-	Log(c, DEBUG, format, args...)
+func LogDebug(hc HasContext, format string, args ...interface{}) {
+	Log(hc, DEBUG, format, args...)
 }
 
 // LogInfo calls Log with INFO severity.
-func LogInfo(c HasContext, format string, args ...interface{}) {
-	Log(c, INFO, format, args...)
+func LogInfo(hc HasContext, format string, args ...interface{}) {
+	Log(hc, INFO, format, args...)
 }
 
 // LogWarn calls Log with WARN severity.
-func LogWarn(c HasContext, format string, args ...interface{}) {
-	Log(c, WARN, format, args...)
+func LogWarn(hc HasContext, format string, args ...interface{}) {
+	Log(hc, WARN, format, args...)
 }
 
 // LogError calls Log with ERROR severity.
-func LogError(c HasContext, format string, args ...interface{}) {
-	Log(c, ERROR, format, args...)
+func LogError(hc HasContext, format string, args ...interface{}) {
+	Log(hc, ERROR, format, args...)
 }
 
 // LogFatal calls Log with FATAL severity.
-func LogFatal(c HasContext, format string, args ...interface{}) {
-	Log(c, FATAL, format, args...)
+func LogFatal(hc HasContext, format string, args ...interface{}) {
+	Log(hc, FATAL, format, args...)
 }
 
 const maxLineLength = 2048

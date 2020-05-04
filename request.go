@@ -64,10 +64,10 @@ func (r *Request) AugmentRequest(incoming *http.Request) *http.Request {
 	return incoming.WithContext(r.NewContext(incoming.Context()))
 }
 
-// GetRequest retrieves a logjam request from a Context. Returns nil of no request is
-// stored in the context.
-func GetRequest(c context.Context) *Request {
-	v, ok := c.Value(requestKey).(*Request)
+// GetRequest retrieves a logjam request from an object with Context. Returns nil if no
+// request is stored in the context.
+func GetRequest(hc HasContext) *Request {
+	v, ok := hc.Context().Value(requestKey).(*Request)
 	if ok {
 		return v
 	}
