@@ -1,6 +1,6 @@
 module github.com/xing/logjam-agent-go
 
-go 1.14
+go 1.11
 
 require (
 	github.com/felixge/httpsnoop v1.0.1
