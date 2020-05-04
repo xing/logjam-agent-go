@@ -5,6 +5,8 @@ addons:
       - libzmq3-dev
 language: go
 go:
+  - 1.11.13
+  - 1.12.17
   - 1.13.10
   - 1.14.2
 script: make test
