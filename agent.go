@@ -22,7 +22,7 @@ const (
 )
 
 var agent struct {
-	opts      *AgentOptions
+	*Options
 	socket    *zmq.Socket // ZeroMQ DEALER socker
 	mutex     sync.Mutex  // ZeroMQ sockets are not thread safe
 	sequence  uint64      // sequence number for outgoing messages
@@ -31,8 +31,8 @@ var agent struct {
 	topic     string      // The default log topic
 }
 
-// AgentOptions such as appliction name, environment and ZeroMQ oscket options.
-type AgentOptions struct {
+// Options such as appliction name, environment and ZeroMQ socket options.
+type Options struct {
 	AppName             string              // Name of your application
 	EnvName             string              // What environment you're running in (production, preview, ...)
 	Endpoints           string              // Comma separated list of ZeroMQ connections specs, defaults to localhost
@@ -61,7 +61,7 @@ type Logger interface {
 var logger Logger
 
 // SetupAgent configures application name, environment name and ZeroMQ socket options.
-func SetupAgent(options *AgentOptions) {
+func SetupAgent(options *Options) {
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
 	if options.Logger == nil {
@@ -78,7 +78,7 @@ func SetupAgent(options *AgentOptions) {
 		options.MaxBytesAllLines = maxBytesAllLinesDefault
 	}
 	options.setSocketDefaults()
-	agent.opts = options
+	agent.Options = options
 	agent.stream = options.AppName + "-" + options.EnvName
 	agent.topic = "logs." + options.AppName + "." + options.EnvName
 	agent.endpoints = make([]string, 0)
@@ -124,7 +124,7 @@ func setFromEnvUnlessNonEmptyString(option *string, name string, defaultValue st
 
 // setSocketDefaults fills integer SocketOptions struct. Programmer set values take precedence
 // over environment variables.
-func (opts *AgentOptions) setSocketDefaults() {
+func (opts *Options) setSocketDefaults() {
 	setFromEnvUnlessNonEmptyString(&opts.Endpoints, "LOGJAM_AGENT_ZMQ_ENDPOINTS", "")
 	setFromEnvUnlessNonEmptyString(&opts.Endpoints, "LOGJAM_BROKER", "localhost")
 
@@ -145,11 +145,11 @@ func setupSocket(connectionSpec string) *zmq.Socket {
 	socket, err := zmq.NewSocket(zmq.DEALER)
 	abort(err)
 	abort(socket.Connect(connectionSpec))
-	abort(socket.SetLinger(time.Duration(agent.opts.Linger) * time.Millisecond))
-	abort(socket.SetSndhwm(agent.opts.Sndhwm))
-	abort(socket.SetRcvhwm(agent.opts.Rcvhwm))
-	abort(socket.SetSndtimeo(time.Duration(agent.opts.Sndtimeo) * time.Millisecond))
-	abort(socket.SetRcvtimeo(time.Duration(agent.opts.Rcvtimeo) * time.Millisecond))
+	abort(socket.SetLinger(time.Duration(agent.Linger) * time.Millisecond))
+	abort(socket.SetSndhwm(agent.Sndhwm))
+	abort(socket.SetRcvhwm(agent.Rcvhwm))
+	abort(socket.SetSndtimeo(time.Duration(agent.Sndtimeo) * time.Millisecond))
+	abort(socket.SetRcvtimeo(time.Duration(agent.Rcvtimeo) * time.Millisecond))
 	return socket
 }
 

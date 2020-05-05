@@ -44,7 +44,7 @@ func NewRequest(action string) *Request {
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
-	r.id = agent.opts.AppName + "-" + agent.opts.EnvName + "-" + r.uuid
+	r.id = agent.AppName + "-" + agent.EnvName + "-" + r.uuid
 	return &r
 }
 
@@ -93,13 +93,13 @@ func (r *Request) Log(severity LogLevel, line string) {
 	}
 	logger.Println(line)
 
-	if r.logLinesBytesCount > agent.opts.MaxBytesAllLines {
+	if r.logLinesBytesCount > agent.MaxBytesAllLines {
 		return
 	}
 
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
-	if r.logLinesBytesCount < agent.opts.MaxBytesAllLines {
+	if r.logLinesBytesCount < agent.MaxBytesAllLines {
 		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line))
 	} else {
 		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated))

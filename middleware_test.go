@@ -75,7 +75,7 @@ func TestMiddleware(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
 	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
 
-	agentOptions := AgentOptions{
+	agentOptions := Options{
 		Endpoints:    "127.0.0.1,localhost",
 		AppName:      "appName",
 		EnvName:      "envName",

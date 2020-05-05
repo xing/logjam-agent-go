@@ -20,7 +20,7 @@ func NewMiddleware(handler http.Handler) http.Handler {
 }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	action := agent.opts.ActionNameExtractor(r)
+	action := agent.ActionNameExtractor(r)
 	logjamRequest := NewRequest(action)
 	r = logjamRequest.AugmentRequest(r)
 
@@ -31,7 +31,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		host = ""
 	}
-	if agent.opts.ObfuscateIPs {
+	if agent.ObfuscateIPs {
 		logjamRequest.ip = obfuscateIP(host)
 	} else {
 		logjamRequest.ip = host

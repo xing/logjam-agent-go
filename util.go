@@ -61,8 +61,8 @@ const lineTruncated = " ... [LINE TRUNCATED]"
 const linesTruncated = "... [LINES DROPPED]"
 
 func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
-	if len(message) > agent.opts.MaxLineLength {
-		message = message[0:agent.opts.MaxLineLength-len(lineTruncated)] + lineTruncated
+	if len(message) > agent.MaxLineLength {
+		message = message[0:agent.MaxLineLength-len(lineTruncated)] + lineTruncated
 	}
 	return []interface{}{int(severity), formatTime(timeStamp), message}
 }

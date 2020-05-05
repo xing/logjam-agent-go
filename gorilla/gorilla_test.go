@@ -44,7 +44,7 @@ func TestGorillaNameExtraction(t *testing.T) {
 	fs, _ := os.Open(os.DevNull)
 	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
 
-	agentOptions := logjam.AgentOptions{
+	agentOptions := logjam.Options{
 		Endpoints: "127.0.0.1,localhost",
 		AppName:   "appName",
 		EnvName:   "envName",
