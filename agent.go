@@ -1,3 +1,5 @@
+// Package logjam provides a go client for sending application metrics and log lines to a
+// logjam endpoint. See https://github.com/skaes/logjam_app.
 package logjam
 
 import (
