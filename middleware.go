@@ -160,9 +160,9 @@ func ipv4for(host string) (net.IP, error) {
 	return ip, nil
 }
 
-// SetLogjamHeaders makes sure all X-Logjam-* Headers are copied into the outgoing
+// SetCallHeaders makes sure all X-Logjam-* Headers are copied into the outgoing
 // request. Call this before you call other APIs.
-func SetLogjamHeaders(hasContext HasContext, outgoing *http.Request) {
+func SetCallHeaders(hasContext HasContext, outgoing *http.Request) {
 	requestValue := hasContext.Context().Value(requestKey)
 
 	if incoming, ok := requestValue.(*Request); ok {

@@ -196,13 +196,13 @@ func TestMiddleware(t *testing.T) {
 	})
 }
 
-func TestSetLogjamHeaders(t *testing.T) {
+func TestSetCallHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
 		incoming := httptest.NewRequest("GET", "/", nil)
 		logjamRequest := NewRequest("foobar")
 		wrapped := logjamRequest.AugmentRequest(incoming)
 		outgoing := httptest.NewRequest("GET", "/", nil)
-		SetLogjamHeaders(wrapped, outgoing)
+		SetCallHeaders(wrapped, outgoing)
 		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "foobar")
 		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, logjamRequest.id)
 	})
