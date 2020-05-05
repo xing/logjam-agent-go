@@ -162,21 +162,14 @@ func ipv4for(host string) (net.IP, error) {
 
 // SetCallHeaders makes sure all X-Logjam-* Headers are copied into the outgoing
 // request. Call this before you call other APIs.
-func SetCallHeaders(hasContext HasContext, outgoing *http.Request) {
-	requestValue := hasContext.Context().Value(requestKey)
-
-	if incoming, ok := requestValue.(*Request); ok {
-		if outgoing.Header == nil {
-			outgoing.Header = http.Header{}
-		}
-		outgoing.Header.Set("X-Logjam-Caller-Id", incoming.id)
-		outgoing.Header.Set("X-Logjam-Action", incoming.action)
-	} else {
-		if logger != nil {
-			logger.Println("couldn't set required outgoing headers, expect call sequence issues.\n",
-				"Please ensure that you are using the Logjam middleware.\n",
-				"Request: ", fmt.Sprintf("%#v", requestValue),
-			)
-		}
+func SetCallHeaders(hc HasContext, outgoing *http.Request) {
+	incoming := GetRequest(hc)
+	if incoming == nil {
+		return
 	}
+	if outgoing.Header == nil {
+		outgoing.Header = http.Header{}
+	}
+	outgoing.Header.Set("X-Logjam-Caller-Id", incoming.id)
+	outgoing.Header.Set("X-Logjam-Action", incoming.action)
 }
