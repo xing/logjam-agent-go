@@ -238,3 +238,18 @@ func generateUUID() string {
 	hex.Encode(hexbuf[:], uuid[:])
 	return string(hexbuf[:])
 }
+
+const timeFormat = "2006-01-02T15:04:05.000000"
+const lineTruncated = " ... [LINE TRUNCATED]"
+const linesTruncated = "... [LINES DROPPED]"
+
+func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
+	if len(message) > agent.MaxLineLength {
+		message = message[0:agent.MaxLineLength-len(lineTruncated)] + lineTruncated
+	}
+	return []interface{}{int(severity), formatTime(timeStamp), message}
+}
+
+func formatTime(timeStamp time.Time) string {
+	return timeStamp.Format(timeFormat)
+}

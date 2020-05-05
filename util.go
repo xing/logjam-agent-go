@@ -3,7 +3,6 @@ package logjam
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // HasContext is any object that reponds to the Context method.
@@ -25,8 +24,8 @@ const (
 // Log takes a context to be able to collect all logs within the same request.
 // If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
 // Maximum line length is 2048 characters.
-func Log(c HasContext, severity LogLevel, format string, args ...interface{}) {
-	if request, ok := c.Context().Value(requestKey).(*Request); ok {
+func Log(hc HasContext, severity LogLevel, format string, args ...interface{}) {
+	if request := GetRequest(hc); request != nil {
 		request.Log(severity, fmt.Sprintf(format, args...))
 	}
 }
@@ -54,19 +53,4 @@ func LogError(hc HasContext, format string, args ...interface{}) {
 // LogFatal calls Log with FATAL severity.
 func LogFatal(hc HasContext, format string, args ...interface{}) {
 	Log(hc, FATAL, format, args...)
-}
-
-const timeFormat = "2006-01-02T15:04:05.000000"
-const lineTruncated = " ... [LINE TRUNCATED]"
-const linesTruncated = "... [LINES DROPPED]"
-
-func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
-	if len(message) > agent.MaxLineLength {
-		message = message[0:agent.MaxLineLength-len(lineTruncated)] + lineTruncated
-	}
-	return []interface{}{int(severity), formatTime(timeStamp), message}
-}
-
-func formatTime(timeStamp time.Time) string {
-	return timeStamp.Format(timeFormat)
 }
