@@ -93,13 +93,13 @@ func (r *Request) Log(severity LogLevel, line string) {
 	}
 	logger.Println(line)
 
-	if r.logLinesBytesCount > maxBytesAllLines {
+	if r.logLinesBytesCount > agent.opts.MaxBytesAllLines {
 		return
 	}
 
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
-	if r.logLinesBytesCount < maxBytesAllLines {
+	if r.logLinesBytesCount < agent.opts.MaxBytesAllLines {
 		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line))
 	} else {
 		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated))

@@ -56,15 +56,13 @@ func LogFatal(hc HasContext, format string, args ...interface{}) {
 	Log(hc, FATAL, format, args...)
 }
 
-const maxLineLength = 2048
-const maxBytesAllLines = 1024 * 1024
 const timeFormat = "2006-01-02T15:04:05.000000"
 const lineTruncated = " ... [LINE TRUNCATED]"
 const linesTruncated = "... [LINES DROPPED]"
 
 func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
-	if len(message) > maxLineLength {
-		message = message[0:maxLineLength-len(lineTruncated)] + lineTruncated
+	if len(message) > agent.opts.MaxLineLength {
+		message = message[0:agent.opts.MaxLineLength-len(lineTruncated)] + lineTruncated
 	}
 	return []interface{}{int(severity), formatTime(timeStamp), message}
 }

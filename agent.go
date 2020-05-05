@@ -16,6 +16,11 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+const (
+	maxLineLengthDefault    = 2048
+	maxBytesAllLinesDefault = 1024 * 1024
+)
+
 var agent struct {
 	opts      *AgentOptions
 	socket    *zmq.Socket // ZeroMQ DEALER socker
@@ -40,6 +45,8 @@ type AgentOptions struct {
 	Logger              Logger              // TODO: why is this an option?
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
+	MaxLineLength       int                 // Long lines truncation threshold, defaults to 2048.
+	MaxBytesAllLines    int                 // Max number of bytes of all log lines, defaults to 1MB.
 }
 
 // ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
@@ -64,7 +71,13 @@ func SetupAgent(options *AgentOptions) {
 	if options.ActionNameExtractor == nil {
 		options.ActionNameExtractor = DefaultActionNameExtractor
 	}
-	options.setDefaults()
+	if options.MaxLineLength == 0 {
+		options.MaxLineLength = maxLineLengthDefault
+	}
+	if options.MaxBytesAllLines == 0 {
+		options.MaxBytesAllLines = maxBytesAllLinesDefault
+	}
+	options.setSocketDefaults()
 	agent.opts = options
 	agent.stream = options.AppName + "-" + options.EnvName
 	agent.topic = "logs." + options.AppName + "." + options.EnvName
@@ -109,9 +122,9 @@ func setFromEnvUnlessNonEmptyString(option *string, name string, defaultValue st
 	}
 }
 
-// setDdefaults fills integer SocketOptions struct. Programmer set values take precedence
+// setSocketDefaults fills integer SocketOptions struct. Programmer set values take precedence
 // over environment variables.
-func (opts *AgentOptions) setDefaults() {
+func (opts *AgentOptions) setSocketDefaults() {
 	setFromEnvUnlessNonEmptyString(&opts.Endpoints, "LOGJAM_AGENT_ZMQ_ENDPOINTS", "")
 	setFromEnvUnlessNonEmptyString(&opts.Endpoints, "LOGJAM_BROKER", "localhost")
 

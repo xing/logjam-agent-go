@@ -66,6 +66,8 @@ func TestLog(t *testing.T) {
 	SetupAgent(&AgentOptions{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
 
 	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
+	maxLineLength := agent.opts.MaxLineLength
+	maxBytesAllLines := agent.opts.MaxBytesAllLines
 
 	Convey("formatLine", t, func() {
 		line := formatLine(DEBUG, now, strings.Repeat("x", maxLineLength))
