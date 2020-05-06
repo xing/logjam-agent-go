@@ -139,7 +139,7 @@ func (r *Request) AddDuration(key string, value time.Duration) {
 // passed function in cases where it is cumbersome to just use AddDuration instead.
 func (r *Request) MeasureDuration(key string, f func()) {
 	beginning := time.Now()
-	defer func() { r.AddDuration(key, time.Now().Sub(beginning)) }()
+	defer func() { r.AddDuration(key, time.Since(beginning)) }()
 	f()
 }
 
