@@ -90,5 +90,5 @@ gorilla.ActionName(router.Path("/users/{user_id}/friends").Methods("GET").Handle
 Make sure to have the route fully configured before calling `gorilla.ActionName`.
 
 
-## Hot to contribute?
+## How to contribute?
 Please fork the repository and create a pull-request for us.
