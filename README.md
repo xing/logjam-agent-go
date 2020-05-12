@@ -29,7 +29,7 @@ logjam.SetupAgent(&logjam.Options{
 	AppName: "MyApp",
 	EnvName: "production",
 	Logger:	 log.New(os.Stderr, "API", log.LstdFlags),
-)
+})
 ```
 
 ### Use the logjam middleware
