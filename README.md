@@ -37,7 +37,7 @@ logjam.SetupAgent(&logjam.Options{
 ```go
 r := mux.NewRouter()
 ...
-r.Use(logjam.NewMiddleware(r))
+r.Use(logjam.NewMiddleware)
 ...
 ```
 
