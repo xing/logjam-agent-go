@@ -26,8 +26,8 @@ const (
 // Agent encapsulates information about a logjam agent.
 type Agent struct {
 	*Options
-	app         string      // name of the application
-	environment string      // environment we're running in (production, preview, ...)
+	App         string      // name of the application
+	Environment string      // environment we're running in (production, preview, ...)
 	socket      *zmq.Socket // ZeroMQ DEALER socker
 	mutex       sync.Mutex  // ZeroMQ sockets are not thread safe
 	sequence    uint64      // sequence number for outgoing messages
@@ -58,8 +58,8 @@ type ActionNameExtractor func(*http.Request) string
 // NewAgent returns a new logjam agent.
 func NewAgent(app, Env string, options *Options) *Agent {
 	agent := &Agent{
-		app:         app,
-		environment: Env,
+		App:         app,
+		Environment: Env,
 	}
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
@@ -77,8 +77,8 @@ func NewAgent(app, Env string, options *Options) *Agent {
 	}
 	options.setSocketDefaults()
 	agent.Options = options
-	agent.stream = agent.app + "-" + agent.environment
-	agent.topic = "logs." + agent.app + "." + agent.environment
+	agent.stream = agent.App + "-" + agent.Environment
+	agent.topic = "logs." + agent.App + "." + agent.Environment
 	agent.endpoints = make([]string, 0)
 	for _, spec := range strings.Split(options.Endpoints, ",") {
 		if spec != "" {
