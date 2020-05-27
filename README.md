@@ -25,10 +25,7 @@ Install via `go get github.com/xing/logjam-agent-go`.
 ### Initialize the client
 
 ```go
-logjam.SetupAgent(&logjam.Options{
-	AppName: "MyApp",
-	EnvName: "production",
-)
+agent := logjam.NewAgent("MyApp", "production")
 ```
 
 ### Use the logjam middleware
@@ -36,7 +33,7 @@ logjam.SetupAgent(&logjam.Options{
 ```go
 r := mux.NewRouter()
 ...
-r.Use(logjam.NewMiddleware(r))
+r.Use(agent.NewMiddleware)
 ...
 ```
 
@@ -53,7 +50,7 @@ Make sure to shut down the agent upon program termination in order to properly c
 ZeroMQ socket used to send messages to logjam.
 
 ```go
-logjam.ShutdownAgent()
+agent.Shutdown()
 ```
 
 ### Adapting logjam action names

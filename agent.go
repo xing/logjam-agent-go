@@ -23,20 +23,20 @@ const (
 	maxBytesAllLinesDefault = 1024 * 1024
 )
 
-var agent struct {
+type agent struct {
 	*Options
-	socket    *zmq.Socket // ZeroMQ DEALER socker
-	mutex     sync.Mutex  // ZeroMQ sockets are not thread safe
-	sequence  uint64      // sequence number for outgoing messages
-	endpoints []string    // Slice representation of opts.Endpoints with port and protocol added
-	stream    string      // The stream name to be used when sending messages
-	topic     string      // The default log topic
+	app         string      // name of the application
+	environment string      // environment we're running in (production, preview, ...)
+	socket      *zmq.Socket // ZeroMQ DEALER socker
+	mutex       sync.Mutex  // ZeroMQ sockets are not thread safe
+	sequence    uint64      // sequence number for outgoing messages
+	endpoints   []string    // Slice representation of opts.Endpoints with port and protocol added
+	stream      string      // The stream name to be used when sending messages
+	topic       string      // The default log topic
 }
 
 // Options such as appliction name, environment and ZeroMQ socket options.
 type Options struct {
-	AppName             string              // Name of your application
-	EnvName             string              // What environment you're running in (production, preview, ...)
 	Endpoints           string              // Comma separated list of ZeroMQ connections specs, defaults to localhost
 	Port                int                 // ZeroMQ default port for ceonnection specs
 	Linger              int                 // ZeroMQ socket option of the same name
@@ -54,8 +54,12 @@ type Options struct {
 // ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
 type ActionNameExtractor func(*http.Request) string
 
-// SetupAgent configures application name, environment name and ZeroMQ socket options.
-func SetupAgent(options *Options) {
+// NewAgent returns a new logjam agent.
+func NewAgent(app, Env string, options *Options) {
+	agent := &agent{
+		app:         app,
+		environment: Env,
+	}
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
 	if options.Logger == nil {
@@ -72,8 +76,8 @@ func SetupAgent(options *Options) {
 	}
 	options.setSocketDefaults()
 	agent.Options = options
-	agent.stream = options.AppName + "-" + options.EnvName
-	agent.topic = "logs." + options.AppName + "." + options.EnvName
+	agent.stream = agent.app + "-" + agent.environment
+	agent.topic = "logs." + agent.app + "." + agent.environment
 	agent.endpoints = make([]string, 0)
 	for _, spec := range strings.Split(options.Endpoints, ",") {
 		if spec != "" {
@@ -82,12 +86,12 @@ func SetupAgent(options *Options) {
 	}
 }
 
-// ShutdownAgent closes the ZeroMQ socket
-func ShutdownAgent() {
-	agent.mutex.Lock()
-	defer agent.mutex.Unlock()
-	if agent.socket != nil {
-		agent.socket.Close()
+// Shutdown the agent.
+func (a *agent) Shutdown() {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	if a.socket != nil {
+		a.socket.Close()
 	}
 }
 
@@ -129,21 +133,26 @@ func (opts *Options) setSocketDefaults() {
 	setFromEnvUnlessNonZero(&opts.Rcvtimeo, "LOGJAM_AGENT_ZMQ_RCV_TIMEO", 5000)
 }
 
-func setupSocket(connectionSpec string) *zmq.Socket {
+func (a *agent) setupSocket() {
+	n := rand.Intn(len(a.endpoints))
+	connectionSpec := a.endpoints[n]
+
 	abort := func(err error) {
 		if err != nil {
 			panic("logjam agent could not configure socket: " + err.Error())
 		}
 	}
+
 	socket, err := zmq.NewSocket(zmq.DEALER)
 	abort(err)
 	abort(socket.Connect(connectionSpec))
-	abort(socket.SetLinger(time.Duration(agent.Linger) * time.Millisecond))
-	abort(socket.SetSndhwm(agent.Sndhwm))
-	abort(socket.SetRcvhwm(agent.Rcvhwm))
-	abort(socket.SetSndtimeo(time.Duration(agent.Sndtimeo) * time.Millisecond))
-	abort(socket.SetRcvtimeo(time.Duration(agent.Rcvtimeo) * time.Millisecond))
-	return socket
+	abort(socket.SetLinger(time.Duration(a.Linger) * time.Millisecond))
+	abort(socket.SetSndhwm(a.Sndhwm))
+	abort(socket.SetRcvhwm(a.Rcvhwm))
+	abort(socket.SetSndtimeo(time.Duration(a.Sndtimeo) * time.Millisecond))
+	abort(socket.SetRcvtimeo(time.Duration(a.Rcvtimeo) * time.Millisecond))
+
+	a.socket = socket
 }
 
 var connectionSpecMatcher = regexp.MustCompile(`\A(?:([^:]+)://)?([^:]+)(?::(\d+))?\z`)
@@ -163,18 +172,17 @@ func augmentConnectionSpec(spec string, defaultPort int) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, host, port)
 }
 
-func sendMessage(msg []byte) {
-	agent.mutex.Lock()
-	defer agent.mutex.Unlock()
-	if agent.socket == nil {
-		n := rand.Intn(len(agent.endpoints))
-		agent.socket = setupSocket(agent.endpoints[n])
+func (a *agent) sendMessage(msg []byte) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	if a.socket == nil {
+		a.setupSocket()
 	}
-	agent.sequence++
-	meta := packInfo(time.Now(), agent.sequence)
-	_, err := agent.socket.SendMessage(agent.stream, agent.topic, msg, meta)
+	a.sequence++
+	meta := packInfo(time.Now(), a.sequence)
+	_, err := a.socket.SendMessage(a.stream, a.topic, msg, meta)
 	if err != nil {
-		agent.Logger.Println(err)
+		a.Logger.Println(err)
 	}
 }
 
