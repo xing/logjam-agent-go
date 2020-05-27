@@ -1,6 +1,7 @@
 package logjam
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -162,8 +163,8 @@ func ipv4for(host string) (net.IP, error) {
 
 // SetCallHeaders makes sure all X-Logjam-* Headers are copied into the outgoing
 // request. Call this before you call other APIs.
-func SetCallHeaders(hc HasContext, outgoing *http.Request) {
-	incoming := GetRequest(hc)
+func SetCallHeaders(ctx context.Context, outgoing *http.Request) {
+	incoming := GetRequest(ctx)
 	if incoming == nil {
 		return
 	}
