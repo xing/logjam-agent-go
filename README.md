@@ -28,7 +28,8 @@ Install via `go get github.com/xing/logjam-agent-go`.
 logjam.SetupAgent(&logjam.Options{
 	AppName: "MyApp",
 	EnvName: "production",
-)
+	Logger:	 log.New(os.Stderr, "API", log.LstdFlags),
+})
 ```
 
 ### Use the logjam middleware
@@ -36,7 +37,7 @@ logjam.SetupAgent(&logjam.Options{
 ```go
 r := mux.NewRouter()
 ...
-r.Use(logjam.NewMiddleware(r))
+r.Use(logjam.NewMiddleware)
 ...
 ```
 
@@ -89,5 +90,5 @@ gorilla.ActionName(router.Path("/users/{user_id}/friends").Methods("GET").Handle
 Make sure to have the route fully configured before calling `gorilla.ActionName`.
 
 
-## Hot to contribute?
+## How to contribute?
 Please fork the repository and create a pull-request for us.
