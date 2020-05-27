@@ -73,10 +73,10 @@ func (r *Request) ChangeAction(w http.ResponseWriter, action string) {
 	w.Header().Set("X-Logjam-Action", action)
 }
 
-// GetRequest retrieves a logjam request from an object with Context. Returns nil if no
+// GetRequest retrieves a logjam request from an Context. Returns nil if no
 // request is stored in the context.
-func GetRequest(hc HasContext) *Request {
-	v, ok := hc.Context().Value(requestKey).(*Request)
+func GetRequest(ctx context.Context) *Request {
+	v, ok := ctx.Value(requestKey).(*Request)
 	if ok {
 		return v
 	}

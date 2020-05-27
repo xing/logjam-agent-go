@@ -56,13 +56,13 @@ func TestMiddleware(t *testing.T) {
 	router := mux.NewRouter()
 
 	router.Path("/rest/app/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		Log(req, 500, "First Line")
-		Log(req, FATAL, "Second Line")
-		Log(req, ERROR, "Third Line")
-		Log(req, WARN, "Fourth Line")
-		Log(req, INFO, "Sixth Line")
+		Log(req.Context(), 500, "First Line")
+		Log(req.Context(), FATAL, "Second Line")
+		Log(req.Context(), ERROR, "Third Line")
+		Log(req.Context(), WARN, "Fourth Line")
+		Log(req.Context(), INFO, "Sixth Line")
 
-		r := GetRequest(req)
+		r := GetRequest(req.Context())
 		r.AddCount("rest_calls", 1)
 		r.AddDuration("rest_time", 5*time.Second)
 		r.SetField("sender_id", "foobar")
@@ -206,7 +206,7 @@ func TestSetCallHeaders(t *testing.T) {
 		logjamRequest := agent.NewRequest("foobar")
 		wrapped := logjamRequest.AugmentRequest(incoming)
 		outgoing := httptest.NewRequest("GET", "/", nil)
-		SetCallHeaders(wrapped, outgoing)
+		SetCallHeaders(wrapped.Context(), outgoing)
 		So(outgoing.Header.Get("X-Logjam-Action"), ShouldEqual, "foobar")
 		So(outgoing.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, logjamRequest.id)
 	})
