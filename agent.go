@@ -5,7 +5,6 @@ package logjam
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -29,14 +28,24 @@ type Logger interface {
 	Println(args ...interface{})
 }
 
+// DiscardingLogger discards all log lines.
+type DiscardingLogger struct{}
+
+// Println does nothing.
+func (d *DiscardingLogger) Println(v ...interface{}) {}
+
 var agent struct {
-	*Options
+	Options
 	socket    *zmq.Socket // ZeroMQ DEALER socker
 	mutex     sync.Mutex  // ZeroMQ sockets are not thread safe
 	sequence  uint64      // sequence number for outgoing messages
 	endpoints []string    // Slice representation of opts.Endpoints with port and protocol added
 	stream    string      // The stream name to be used when sending messages
 	topic     string      // The default log topic
+}
+
+func init() {
+	agent.Options = Options{Logger: &DiscardingLogger{}}
 }
 
 // Options such as appliction name, environment and ZeroMQ socket options.
@@ -51,6 +60,7 @@ type Options struct {
 	Sndtimeo            int                 // ZeroMQ socket option of the same name
 	Rcvtimeo            int                 // ZeroMQ socket option of the same name
 	Logger              Logger              // Logjam errors are printed using this interface.
+	LogLevel            LogLevel            // Only lines with a severity equal to or higher are sent to logjam. Defaults to DEBUG.
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
 	MaxLineLength       int                 // Long lines truncation threshold, defaults to 2048.
@@ -64,26 +74,26 @@ type ActionNameExtractor func(*http.Request) string
 func SetupAgent(options *Options) {
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
-	if options.Logger == nil {
-		options.Logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+	agent.Options = *options
+	if agent.Logger == nil {
+		agent.Logger = &DiscardingLogger{}
 	}
-	if options.ActionNameExtractor == nil {
-		options.ActionNameExtractor = DefaultActionNameExtractor
+	if agent.ActionNameExtractor == nil {
+		agent.ActionNameExtractor = DefaultActionNameExtractor
 	}
-	if options.MaxLineLength == 0 {
-		options.MaxLineLength = maxLineLengthDefault
+	if agent.MaxLineLength == 0 {
+		agent.MaxLineLength = maxLineLengthDefault
 	}
-	if options.MaxBytesAllLines == 0 {
-		options.MaxBytesAllLines = maxBytesAllLinesDefault
+	if agent.MaxBytesAllLines == 0 {
+		agent.MaxBytesAllLines = maxBytesAllLinesDefault
 	}
-	options.setSocketDefaults()
-	agent.Options = options
-	agent.stream = options.AppName + "-" + options.EnvName
-	agent.topic = "logs." + options.AppName + "." + options.EnvName
+	agent.setSocketDefaults()
+	agent.stream = agent.AppName + "-" + agent.EnvName
+	agent.topic = "logs." + agent.AppName + "." + agent.EnvName
 	agent.endpoints = make([]string, 0)
-	for _, spec := range strings.Split(options.Endpoints, ",") {
+	for _, spec := range strings.Split(agent.Endpoints, ",") {
 		if spec != "" {
-			agent.endpoints = append(agent.endpoints, augmentConnectionSpec(spec, options.Port))
+			agent.endpoints = append(agent.endpoints, augmentConnectionSpec(spec, agent.Port))
 		}
 	}
 }

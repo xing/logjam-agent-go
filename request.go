@@ -91,7 +91,9 @@ func (r *Request) Log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
 	}
-
+	if agent.LogLevel > severity {
+		return
+	}
 	if r.logLinesBytesCount > agent.MaxBytesAllLines {
 		return
 	}

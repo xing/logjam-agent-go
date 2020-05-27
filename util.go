@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// LogLevel (modeled afterRuby log levels).
+// LogLevel (modeled after Ruby log levels).
 type LogLevel int
 
 const (
@@ -16,36 +16,70 @@ const (
 	FATAL LogLevel = 4
 )
 
-// Log takes a context to be able to collect all logs within the same request.
-// If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
-// Maximum line length is 2048 characters.
-func Log(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
+// Logf takes a context to be able to collect all logs within the same request.
+func Logf(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
 	if request := GetRequest(ctx); request != nil {
-		request.Log(severity, fmt.Sprintf(format, args...))
+		line := fmt.Sprintf(format, args...)
+		request.Log(severity, line)
 	}
 }
 
-// LogDebug calls Log with DEBUG severity.
-func LogDebug(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, DEBUG, format, args...)
+// Log takes a context to be able to collect all logs within the same request.
+func Log(ctx context.Context, severity LogLevel, args ...interface{}) {
+	if request := GetRequest(ctx); request != nil {
+		line := fmt.Sprint(args...)
+		request.Log(severity, line)
+	}
 }
 
-// LogInfo calls Log with INFO severity.
-func LogInfo(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, INFO, format, args...)
+// LogDebugf calls Log with DEBUG severity.
+func LogDebugf(ctx context.Context, format string, args ...interface{}) {
+	Logf(ctx, DEBUG, format, args...)
 }
 
-// LogWarn calls Log with WARN severity.
-func LogWarn(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, WARN, format, args...)
+// LogDebug calls Logln with DEBUG severity.
+func LogDebug(ctx context.Context, args ...interface{}) {
+	Log(ctx, DEBUG, fmt.Sprint(args...))
 }
 
-// LogError calls Log with ERROR severity.
-func LogError(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, ERROR, format, args...)
+// LogInfof calls Log with INFO severity.
+func LogInfof(ctx context.Context, format string, args ...interface{}) {
+	Logf(ctx, INFO, format, args...)
 }
 
-// LogFatal calls Log with FATAL severity.
-func LogFatal(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, FATAL, format, args...)
+// LogInfo calls Logln with INFO severity.
+func LogInfo(ctx context.Context, args ...interface{}) {
+	Log(ctx, INFO, fmt.Sprint(args...))
+}
+
+// LogWarnf calls Log with WARN severity.
+func LogWarnf(ctx context.Context, format string, args ...interface{}) {
+	Logf(ctx, WARN, format, args...)
+}
+
+// LogWarn calls Logln with WARN severity.
+func LogWarn(ctx context.Context, args ...interface{}) {
+	Log(ctx, WARN, fmt.Sprint(args...))
+}
+
+// LogErrorf calls Log with ERROR severity.
+func LogErrorf(ctx context.Context, format string, args ...interface{}) {
+	Logf(ctx, ERROR, format, args...)
+}
+
+// LogError calls Logln with ERROR severity.
+func LogError(ctx context.Context, args ...interface{}) {
+	Log(ctx, ERROR, fmt.Sprint(args...))
+}
+
+// LogFatalf calls Logln with FATAL severity, then panics.
+func LogFatalf(ctx context.Context, format string, args ...interface{}) {
+	Logf(ctx, FATAL, format, args...)
+	panic(fmt.Sprintf(format, args...))
+}
+
+// LogFatal calls Logln with FATAL severity, then panics.
+func LogFatal(ctx context.Context, args ...interface{}) {
+	Log(ctx, FATAL, args...)
+	panic(fmt.Sprint(args...))
 }
