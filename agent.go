@@ -23,7 +23,8 @@ const (
 	maxBytesAllLinesDefault = 1024 * 1024
 )
 
-type agent struct {
+// Agent encapsulates information about a logjam agent.
+type Agent struct {
 	*Options
 	app         string      // name of the application
 	environment string      // environment we're running in (production, preview, ...)
@@ -55,8 +56,8 @@ type Options struct {
 type ActionNameExtractor func(*http.Request) string
 
 // NewAgent returns a new logjam agent.
-func NewAgent(app, Env string, options *Options) {
-	agent := &agent{
+func NewAgent(app, Env string, options *Options) *Agent {
+	agent := &Agent{
 		app:         app,
 		environment: Env,
 	}
@@ -84,10 +85,12 @@ func NewAgent(app, Env string, options *Options) {
 			agent.endpoints = append(agent.endpoints, augmentConnectionSpec(spec, options.Port))
 		}
 	}
+
+	return agent
 }
 
 // Shutdown the agent.
-func (a *agent) Shutdown() {
+func (a *Agent) Shutdown() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if a.socket != nil {
@@ -133,7 +136,7 @@ func (opts *Options) setSocketDefaults() {
 	setFromEnvUnlessNonZero(&opts.Rcvtimeo, "LOGJAM_AGENT_ZMQ_RCV_TIMEO", 5000)
 }
 
-func (a *agent) setupSocket() {
+func (a *Agent) setupSocket() {
 	n := rand.Intn(len(a.endpoints))
 	connectionSpec := a.endpoints[n]
 
@@ -172,7 +175,7 @@ func augmentConnectionSpec(spec string, defaultPort int) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, host, port)
 }
 
-func (a *agent) sendMessage(msg []byte) {
+func (a *Agent) sendMessage(msg []byte) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if a.socket == nil {

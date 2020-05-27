@@ -16,7 +16,7 @@ import (
 
 // Request encapsulates information about the current logjam request.
 type Request struct {
-	agent              *agent                   // logjam agent
+	agent              *Agent                   // logjam agent
 	action             string                   // The action name for this request.
 	uuid               string                   // Request id as sent to logjam (version 4 UUID).
 	id                 string                   // Request id as sent to called applications (app-env-uuid).
@@ -35,7 +35,7 @@ type Request struct {
 }
 
 // NewRequest creates a new logjam request for a given action name.
-func (a *agent) NewRequest(action string) *Request {
+func (a *Agent) NewRequest(action string) *Request {
 	r := Request{
 		agent:     a,
 		action:    action,

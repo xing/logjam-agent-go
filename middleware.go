@@ -11,12 +11,12 @@ import (
 )
 
 type middleware struct {
-	agent   *agent
+	agent   *Agent
 	handler http.Handler
 }
 
 // NewMiddleware can be used to wrap any standard http.Handler.
-func (a *agent) NewMiddleware(handler http.Handler) http.Handler {
+func (a *Agent) NewMiddleware(handler http.Handler) http.Handler {
 	return &middleware{agent: a, handler: handler}
 }
 
