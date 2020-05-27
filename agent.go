@@ -56,10 +56,10 @@ type Options struct {
 type ActionNameExtractor func(*http.Request) string
 
 // NewAgent returns a new logjam agent.
-func NewAgent(app, Env string, options *Options) *Agent {
+func NewAgent(app, env string, options *Options) *Agent {
 	agent := &Agent{
 		App:         app,
-		Environment: Env,
+		Environment: env,
 	}
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
