@@ -75,15 +75,13 @@ func TestMiddleware(t *testing.T) {
 
 	agentOptions := Options{
 		Endpoints:    "127.0.0.1,localhost",
-		AppName:      "appName",
-		EnvName:      "envName",
 		Logger:       log.New(ioutil.Discard, "", 0),
 		ObfuscateIPs: true,
 	}
-	SetupAgent(&agentOptions)
-	defer ShutdownAgent()
+	agent := NewAgent("appName", "envName", &agentOptions)
+	defer agent.Shutdown()
 
-	server := httptest.NewServer(NewMiddleware(router))
+	server := httptest.NewServer(agent.NewMiddleware(router))
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
@@ -124,8 +122,8 @@ func TestMiddleware(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(msg, ShouldHaveLength, 5)
 
-		So(msg[1], ShouldEqual, agentOptions.AppName+"-"+agentOptions.EnvName)
-		So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
+		So(msg[1], ShouldEqual, agent.App+"-"+agent.Environment)
+		So(msg[2], ShouldEqual, "logs."+agent.App+"."+agent.Environment)
 
 		payload, err := snappy.Decode(nil, []byte(msg[3]))
 		So(err, ShouldBeNil)
@@ -196,8 +194,16 @@ func TestMiddleware(t *testing.T) {
 
 func TestSetCallHeaders(t *testing.T) {
 	Convey("SetLogjamHeaders", t, func() {
+		agentOptions := Options{
+			Endpoints:    "127.0.0.1,localhost",
+			Logger:       log.New(ioutil.Discard, "", 0),
+			ObfuscateIPs: true,
+		}
+		agent := NewAgent("appName", "envName", &agentOptions)
+		defer agent.Shutdown()
+
 		incoming := httptest.NewRequest("GET", "/", nil)
-		logjamRequest := NewRequest("foobar")
+		logjamRequest := agent.NewRequest("foobar")
 		wrapped := logjamRequest.AugmentRequest(incoming)
 		outgoing := httptest.NewRequest("GET", "/", nil)
 		SetCallHeaders(wrapped, outgoing)

@@ -46,7 +46,7 @@ func (a *Agent) NewRequest(action string) *Request {
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
-	r.id = a.app + "-" + a.environment + "-" + r.uuid
+	r.id = a.App + "-" + a.Environment + "-" + r.uuid
 	return &r
 }
 
@@ -101,9 +101,9 @@ func (r *Request) Log(severity LogLevel, line string) {
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
 	if r.logLinesBytesCount < r.agent.MaxBytesAllLines {
-		r.logLines = append(r.logLines, r.formatLine(severity, time.Now(), line))
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line, r.agent.MaxLineLength))
 	} else {
-		r.logLines = append(r.logLines, r.formatLine(severity, time.Now(), linesTruncated))
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated, r.agent.MaxLineLength))
 	}
 }
 
@@ -244,9 +244,9 @@ const timeFormat = "2006-01-02T15:04:05.000000"
 const lineTruncated = " ... [LINE TRUNCATED]"
 const linesTruncated = "... [LINES DROPPED]"
 
-func (r *Request) formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
-	if len(message) > r.agent.MaxLineLength {
-		message = message[0:r.agent.MaxLineLength-len(lineTruncated)] + lineTruncated
+func formatLine(severity LogLevel, timeStamp time.Time, message string, maxLineLength int) []interface{} {
+	if len(message) > maxLineLength {
+		message = message[0:maxLineLength-len(lineTruncated)] + lineTruncated
 	}
 	return []interface{}{int(severity), formatTime(timeStamp), message}
 }
