@@ -2,6 +2,7 @@ package logjam
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -72,14 +73,11 @@ func TestMiddleware(t *testing.T) {
 		})
 	})
 
-	fs, _ := os.Open(os.DevNull)
-	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
-
 	agentOptions := Options{
 		Endpoints:    "127.0.0.1,localhost",
 		AppName:      "appName",
 		EnvName:      "envName",
-		Logger:       logger,
+		Logger:       log.New(ioutil.Discard, "", 0),
 		ObfuscateIPs: true,
 	}
 	SetupAgent(&agentOptions)

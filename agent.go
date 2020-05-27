@@ -44,7 +44,7 @@ type Options struct {
 	Rcvhwm              int                 // ZeroMQ socket option of the same name
 	Sndtimeo            int                 // ZeroMQ socket option of the same name
 	Rcvtimeo            int                 // ZeroMQ socket option of the same name
-	Logger              Logger              // TODO: why is this an option?
+	Logger              *log.Logger         // Logjam errors are send to this logger
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
 	MaxLineLength       int                 // Long lines truncation threshold, defaults to 2048.
@@ -54,14 +54,6 @@ type Options struct {
 // ActionNameExtractor takes a HTTP request and returns a logjam conformant action name.
 type ActionNameExtractor func(*http.Request) string
 
-// Logger must provide some methods to let Logjam output its logs.
-type Logger interface {
-	Println(v ...interface{})
-	Printf(fmt string, v ...interface{})
-}
-
-var logger Logger
-
 // SetupAgent configures application name, environment name and ZeroMQ socket options.
 func SetupAgent(options *Options) {
 	agent.mutex.Lock()
@@ -69,7 +61,6 @@ func SetupAgent(options *Options) {
 	if options.Logger == nil {
 		options.Logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 	}
-	logger = options.Logger
 	if options.ActionNameExtractor == nil {
 		options.ActionNameExtractor = DefaultActionNameExtractor
 	}
@@ -183,7 +174,7 @@ func sendMessage(msg []byte) {
 	meta := packInfo(time.Now(), agent.sequence)
 	_, err := agent.socket.SendMessage(agent.stream, agent.topic, msg, meta)
 	if err != nil {
-		logger.Println(err)
+		agent.Logger.Println(err)
 	}
 }
 

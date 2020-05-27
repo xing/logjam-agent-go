@@ -2,10 +2,10 @@ package gorilla
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/golang/snappy"
@@ -41,14 +41,11 @@ func TestGorillaNameExtraction(t *testing.T) {
 	router.Path("/allmethods").HandlerFunc(somebody)
 	router.Path("/simple").Methods("GET").HandlerFunc(somebody)
 
-	fs, _ := os.Open(os.DevNull)
-	logger := log.New(fs, "API", log.LstdFlags|log.Lshortfile)
-
 	agentOptions := logjam.Options{
 		Endpoints: "127.0.0.1,localhost",
 		AppName:   "appName",
 		EnvName:   "envName",
-		Logger:    logger,
+		Logger:    log.New(ioutil.Discard, "", 0),
 	}
 	logjam.SetupAgent(&agentOptions)
 	defer logjam.ShutdownAgent()

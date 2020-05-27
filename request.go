@@ -91,7 +91,6 @@ func (r *Request) Log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
 	}
-	logger.Println(line)
 
 	if r.logLinesBytesCount > agent.MaxBytesAllLines {
 		return
@@ -151,7 +150,7 @@ func (r *Request) Finish(code int) {
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
-		logger.Println(err)
+		agent.Logger.Println(err)
 		return
 	}
 	data := snappy.Encode(nil, buf)

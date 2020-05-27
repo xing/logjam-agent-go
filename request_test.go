@@ -1,9 +1,9 @@
 package logjam
 
 import (
+	"io/ioutil"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -62,8 +62,7 @@ func TestSettingFields(t *testing.T) {
 }
 
 func TestLog(t *testing.T) {
-	fs, _ := os.Open(os.DevNull)
-	SetupAgent(&Options{Logger: log.New(fs, "API", log.LstdFlags|log.Lshortfile)})
+	SetupAgent(&Options{Logger: log.New(ioutil.Discard, "", 0)})
 
 	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
 	maxLineLength := agent.MaxLineLength
