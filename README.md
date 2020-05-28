@@ -25,7 +25,10 @@ Install via `go get github.com/xing/logjam-agent-go`.
 ### Initialize the client
 
 ```go
-agent := logjam.NewAgent("MyApp", "production")
+agent := logjam.NewAgent(&logjam.Options{
+	AppName: "MyApp",
+	EnvName: "production",
+})
 ```
 
 ### Use the logjam middleware

@@ -55,7 +55,7 @@ func TestLogjamHelpers(t *testing.T) {
 
 func TestSettingFields(t *testing.T) {
 	Convey("Setting fields", t, func() {
-		agent := NewAgent("", "", &Options{Logger: log.New(ioutil.Discard, "", 0)})
+		agent := NewAgent(&Options{Logger: log.New(ioutil.Discard, "", 0)})
 		r := agent.NewRequest("foo")
 		r.SetField("foo", "bar")
 		So(r.GetField("foo"), ShouldEqual, "bar")
@@ -63,7 +63,7 @@ func TestSettingFields(t *testing.T) {
 }
 
 func TestLog(t *testing.T) {
-	agent := NewAgent("", "", &Options{Logger: log.New(ioutil.Discard, "", 0)})
+	agent := NewAgent(&Options{Logger: log.New(ioutil.Discard, "", 0)})
 
 	now := time.Date(1970, 1, 1, 1, 0, 0, 0, time.Now().Location())
 	maxLineLength := agent.MaxLineLength

@@ -46,7 +46,7 @@ func (a *Agent) NewRequest(action string) *Request {
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
-	r.id = a.App + "-" + a.Environment + "-" + r.uuid
+	r.id = a.AppName + "-" + a.EnvName + "-" + r.uuid
 	return &r
 }
 

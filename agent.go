@@ -26,18 +26,18 @@ const (
 // Agent encapsulates information about a logjam agent.
 type Agent struct {
 	*Options
-	App         string      // name of the application
-	Environment string      // environment we're running in (production, preview, ...)
-	socket      *zmq.Socket // ZeroMQ DEALER socker
-	mutex       sync.Mutex  // ZeroMQ sockets are not thread safe
-	sequence    uint64      // sequence number for outgoing messages
-	endpoints   []string    // Slice representation of opts.Endpoints with port and protocol added
-	stream      string      // The stream name to be used when sending messages
-	topic       string      // The default log topic
+	socket    *zmq.Socket // ZeroMQ DEALER socker
+	mutex     sync.Mutex  // ZeroMQ sockets are not thread safe
+	sequence  uint64      // sequence number for outgoing messages
+	endpoints []string    // Slice representation of opts.Endpoints with port and protocol added
+	stream    string      // The stream name to be used when sending messages
+	topic     string      // The default log topic
 }
 
 // Options such as appliction name, environment and ZeroMQ socket options.
 type Options struct {
+	AppName             string              // Name of your application
+	EnvName             string              // What environment you're running in (production, preview, ...)
 	Endpoints           string              // Comma separated list of ZeroMQ connections specs, defaults to localhost
 	Port                int                 // ZeroMQ default port for ceonnection specs
 	Linger              int                 // ZeroMQ socket option of the same name
@@ -56,11 +56,8 @@ type Options struct {
 type ActionNameExtractor func(*http.Request) string
 
 // NewAgent returns a new logjam agent.
-func NewAgent(app, env string, options *Options) *Agent {
-	agent := &Agent{
-		App:         app,
-		Environment: env,
-	}
+func NewAgent(options *Options) *Agent {
+	agent := &Agent{Options: options}
 	agent.mutex.Lock()
 	defer agent.mutex.Unlock()
 	if options.Logger == nil {
@@ -77,8 +74,8 @@ func NewAgent(app, env string, options *Options) *Agent {
 	}
 	options.setSocketDefaults()
 	agent.Options = options
-	agent.stream = agent.App + "-" + agent.Environment
-	agent.topic = "logs." + agent.App + "." + agent.Environment
+	agent.stream = options.AppName + "-" + options.EnvName
+	agent.topic = "logs." + options.AppName + "." + options.EnvName
 	agent.endpoints = make([]string, 0)
 	for _, spec := range strings.Split(options.Endpoints, ",") {
 		if spec != "" {

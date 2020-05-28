@@ -43,9 +43,11 @@ func TestGorillaNameExtraction(t *testing.T) {
 
 	agentOptions := logjam.Options{
 		Endpoints: "127.0.0.1,localhost",
+		AppName:   "appName",
+		EnvName:   "envName",
 		Logger:    log.New(ioutil.Discard, "", 0),
 	}
-	agent := logjam.NewAgent("appName", "envName", &agentOptions)
+	agent := logjam.NewAgent(&agentOptions)
 	defer agent.Shutdown()
 
 	server := httptest.NewServer(agent.NewMiddleware(router))
