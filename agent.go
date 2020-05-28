@@ -23,6 +23,12 @@ const (
 	maxBytesAllLinesDefault = 1024 * 1024
 )
 
+// Logger is a minimal interface for the agent to log errors. Application level logging is
+// provided seperately.
+type Logger interface {
+	Println(args ...interface{})
+}
+
 var agent struct {
 	*Options
 	socket    *zmq.Socket // ZeroMQ DEALER socker
@@ -44,7 +50,7 @@ type Options struct {
 	Rcvhwm              int                 // ZeroMQ socket option of the same name
 	Sndtimeo            int                 // ZeroMQ socket option of the same name
 	Rcvtimeo            int                 // ZeroMQ socket option of the same name
-	Logger              *log.Logger         // Logjam errors are send to this logger
+	Logger              Logger              // Logjam errors are printed using this interface.
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
 	MaxLineLength       int                 // Long lines truncation threshold, defaults to 2048.
