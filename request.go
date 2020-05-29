@@ -16,6 +16,7 @@ import (
 
 // Request encapsulates information about the current logjam request.
 type Request struct {
+	agent              *Agent                   // logjam agent
 	action             string                   // The action name for this request.
 	uuid               string                   // Request id as sent to logjam (version 4 UUID).
 	id                 string                   // Request id as sent to called applications (app-env-uuid).
@@ -34,8 +35,9 @@ type Request struct {
 }
 
 // NewRequest creates a new logjam request for a given action name.
-func NewRequest(action string) *Request {
+func (a *Agent) NewRequest(action string) *Request {
 	r := Request{
+		agent:     a,
 		action:    action,
 		durations: map[string]time.Duration{},
 		counts:    map[string]int64{},
@@ -44,7 +46,7 @@ func NewRequest(action string) *Request {
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
-	r.id = agent.AppName + "-" + agent.EnvName + "-" + r.uuid
+	r.id = a.AppName + "-" + a.EnvName + "-" + r.uuid
 	return &r
 }
 
@@ -91,19 +93,19 @@ func (r *Request) Log(severity LogLevel, line string) {
 	if r.severity < severity {
 		r.severity = severity
 	}
-	if agent.LogLevel > severity {
+	if r.agent.LogLevel > severity {
 		return
 	}
-	if r.logLinesBytesCount > agent.MaxBytesAllLines {
+	if r.logLinesBytesCount > r.agent.MaxBytesAllLines {
 		return
 	}
 
 	lineLen := len(line)
 	r.logLinesBytesCount += lineLen
-	if r.logLinesBytesCount < agent.MaxBytesAllLines {
-		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line))
+	if r.logLinesBytesCount < r.agent.MaxBytesAllLines {
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), line, r.agent.MaxLineLength))
 	} else {
-		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated))
+		r.logLines = append(r.logLines, formatLine(severity, time.Now(), linesTruncated, r.agent.MaxLineLength))
 	}
 }
 
@@ -152,11 +154,11 @@ func (r *Request) Finish(code int) {
 
 	buf, err := json.Marshal(&payload)
 	if err != nil {
-		agent.Logger.Println(err)
+		r.agent.Logger.Println(err)
 		return
 	}
 	data := snappy.Encode(nil, buf)
-	sendMessage(data)
+	r.agent.sendMessage(data)
 }
 
 func (r *Request) logjamPayload(code int) map[string]interface{} {
@@ -244,9 +246,9 @@ const timeFormat = "2006-01-02T15:04:05.000000"
 const lineTruncated = " ... [LINE TRUNCATED]"
 const linesTruncated = "... [LINES DROPPED]"
 
-func formatLine(severity LogLevel, timeStamp time.Time, message string) []interface{} {
-	if len(message) > agent.MaxLineLength {
-		message = message[0:agent.MaxLineLength-len(lineTruncated)] + lineTruncated
+func formatLine(severity LogLevel, timeStamp time.Time, message string, maxLineLength int) []interface{} {
+	if len(message) > maxLineLength {
+		message = message[0:maxLineLength-len(lineTruncated)] + lineTruncated
 	}
 	return []interface{}{int(severity), formatTime(timeStamp), message}
 }

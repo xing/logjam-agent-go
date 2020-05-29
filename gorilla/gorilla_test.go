@@ -47,10 +47,10 @@ func TestGorillaNameExtraction(t *testing.T) {
 		EnvName:   "envName",
 		Logger:    log.New(ioutil.Discard, "", 0),
 	}
-	logjam.SetupAgent(&agentOptions)
-	defer logjam.ShutdownAgent()
+	agent := logjam.NewAgent(&agentOptions)
+	defer agent.Shutdown()
 
-	server := httptest.NewServer(logjam.NewMiddleware(router))
+	server := httptest.NewServer(agent.NewMiddleware(router))
 	defer server.Close()
 
 	socket, err := zmq4.NewSocket(zmq4.ROUTER)

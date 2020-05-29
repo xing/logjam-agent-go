@@ -12,17 +12,18 @@ import (
 )
 
 type middleware struct {
+	agent   *Agent
 	handler http.Handler
 }
 
 // NewMiddleware can be used to wrap any standard http.Handler.
-func NewMiddleware(handler http.Handler) http.Handler {
-	return &middleware{handler: handler}
+func (a *Agent) NewMiddleware(handler http.Handler) http.Handler {
+	return &middleware{agent: a, handler: handler}
 }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	action := agent.ActionNameExtractor(r)
-	logjamRequest := NewRequest(action)
+	action := m.agent.ActionNameExtractor(r)
+	logjamRequest := m.agent.NewRequest(action)
 	r = logjamRequest.AugmentRequest(r)
 
 	logjamRequest.callerID = r.Header.Get("X-Logjam-Caller-Id")
@@ -32,7 +33,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		host = ""
 	}
-	if agent.ObfuscateIPs {
+	if m.agent.ObfuscateIPs {
 		logjamRequest.ip = obfuscateIP(host)
 	} else {
 		logjamRequest.ip = host
@@ -46,7 +47,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			msg := fmt.Sprintf("%#v", recovered)
-			agent.Logger.Println(msg)
+			m.agent.Logger.Println(msg)
 			logjamRequest.Log(FATAL, msg)
 			logjamRequest.info = requestInfo(r)
 			logjamRequest.Finish(500)
