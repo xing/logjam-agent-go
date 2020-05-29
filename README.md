@@ -43,12 +43,12 @@ agent := logjam.NewAgent(&logjam.Options{
 ### Use the logjam middleware
 
 ```go
-	r := mux.NewRouter()
+r := mux.NewRouter()
+...
+server := http.Server{
+	Handler: handlers.RecoveryHandler()(agent.NewMiddleware(r))
 	...
-	server := http.Server{
-		Handler: handlers.RecoveryHandler()(agent.NewMiddleware(r))
-		...
-	}
+}
 ```
 
 This example uses the Gorilla Mux package but it should also work with other router
