@@ -43,14 +43,18 @@ agent := logjam.NewAgent(&logjam.Options{
 ### Use the logjam middleware
 
 ```go
-r := mux.NewRouter()
-...
-r.Use(agent.NewMiddleware)
-...
+	r := mux.NewRouter()
+	...
+	server := http.Server{
+		Handler: handlers.RecoveryHandler()(agent.NewMiddleware(r))
+		...
+	}
 ```
 
 This example uses the Gorilla Mux package but it should also work with other router
-packages.
+packages. Don't use the Gorilla syntax: `r.Use(agent.NewMiddleware)` because middleware
+added that way is only called for configured routes. So you'll not get 404s tracked
+in logjam.
 
 You also need to set environment variables to point to the actual logjam broker instance:
 
