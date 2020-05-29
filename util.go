@@ -3,6 +3,7 @@ package logjam
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 // LogLevel (modeled after Ruby log levels).
@@ -16,70 +17,92 @@ const (
 	FATAL LogLevel = 4
 )
 
-// Logf takes a context to be able to collect all logs within the same request.
-func Logf(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
+// Logger extends the standard log.Logger with methods that send log lines to both logjam
+// and the embedded Logger. Even though all standard logger methods are available, you
+// will want use Fatal, Fatalf and Fatalln only during program startup/shutdown, as they
+// abort the runnning process. To create a log line with log level FATAL use
+// FatalPanic/FatalPanicf. Note that lines which are logged at a level below the
+// configured log level will not be sent to the embedded logger, only forwarded to the
+// logjam logger. Usually one would configure log level DEBUG for development and ERROR or
+// even FATAL for production environments, as logs are sent to logjam and/or Graylog
+// anyway.
+type Logger struct {
+	*log.Logger          // The embedded log.Logger.
+	LogLevel    LogLevel // Log attemtps with a log level lower than this field are not forwarded to the embbeded logger.
+}
+
+func (l *Logger) logf(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
+	line := fmt.Sprintf(format, args...)
 	if request := GetRequest(ctx); request != nil {
-		line := fmt.Sprintf(format, args...)
 		request.Log(severity, line)
+	}
+	if severity >= l.LogLevel {
+		l.Output(3, line)
 	}
 }
 
-// Log takes a context to be able to collect all logs within the same request.
-func Log(ctx context.Context, severity LogLevel, args ...interface{}) {
+func (l *Logger) log(ctx context.Context, severity LogLevel, args ...interface{}) {
+	line := fmt.Sprint(args...)
 	if request := GetRequest(ctx); request != nil {
-		line := fmt.Sprint(args...)
 		request.Log(severity, line)
+	}
+	if severity >= l.LogLevel {
+		l.Output(3, line)
 	}
 }
 
-// LogDebugf calls Log with DEBUG severity.
-func LogDebugf(ctx context.Context, format string, args ...interface{}) {
-	Logf(ctx, DEBUG, format, args...)
+// Debugf logs with DEBUG severity.
+func (l *Logger) Debugf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, DEBUG, format, args...)
 }
 
-// LogDebug calls Logln with DEBUG severity.
-func LogDebug(ctx context.Context, args ...interface{}) {
-	Log(ctx, DEBUG, fmt.Sprint(args...))
+// Debug logs with DEBUG severity.
+func (l *Logger) Debug(ctx context.Context, args ...interface{}) {
+	l.log(ctx, DEBUG, args...)
 }
 
-// LogInfof calls Log with INFO severity.
-func LogInfof(ctx context.Context, format string, args ...interface{}) {
-	Logf(ctx, INFO, format, args...)
+// Infof logs with INFO severity.
+func (l *Logger) Infof(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, INFO, format, args...)
 }
 
-// LogInfo calls Logln with INFO severity.
-func LogInfo(ctx context.Context, args ...interface{}) {
-	Log(ctx, INFO, fmt.Sprint(args...))
+// Info logs with INFO severity.
+func (l *Logger) Info(ctx context.Context, args ...interface{}) {
+	l.log(ctx, INFO, args...)
 }
 
-// LogWarnf calls Log with WARN severity.
-func LogWarnf(ctx context.Context, format string, args ...interface{}) {
-	Logf(ctx, WARN, format, args...)
+// Warnf logs WARN severity.
+func (l *Logger) Warnf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, WARN, format, args...)
 }
 
-// LogWarn calls Logln with WARN severity.
-func LogWarn(ctx context.Context, args ...interface{}) {
-	Log(ctx, WARN, fmt.Sprint(args...))
+// Warn logs with WARN severity.
+func (l *Logger) Warn(ctx context.Context, args ...interface{}) {
+	l.log(ctx, WARN, args...)
 }
 
-// LogErrorf calls Log with ERROR severity.
-func LogErrorf(ctx context.Context, format string, args ...interface{}) {
-	Logf(ctx, ERROR, format, args...)
+// Errorf logs with ERROR severity.
+func (l *Logger) Errorf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, ERROR, format, args...)
 }
 
-// LogError calls Logln with ERROR severity.
-func LogError(ctx context.Context, args ...interface{}) {
-	Log(ctx, ERROR, fmt.Sprint(args...))
+// Error logs with ERROR severity.
+func (l *Logger) Error(ctx context.Context, args ...interface{}) {
+	l.log(ctx, ERROR, args...)
 }
 
-// LogFatalf calls Logln with FATAL severity, then panics.
-func LogFatalf(ctx context.Context, format string, args ...interface{}) {
-	Logf(ctx, FATAL, format, args...)
+// FatalPanicf logs with FATAL severity, then panics. Please note that the standard Logger
+// method exits the program, which is usually not a desired outcome in a long running
+// server application.
+func (l *Logger) FatalPanicf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, FATAL, format, args...)
 	panic(fmt.Sprintf(format, args...))
 }
 
-// LogFatal calls Logln with FATAL severity, then panics.
-func LogFatal(ctx context.Context, args ...interface{}) {
-	Log(ctx, FATAL, args...)
+// FatalPanic logs with FATAL severity, then panics. Please note that the standard Logger
+// method exits the program, which is usually not a desired outcome in a long running
+// server application.
+func (l *Logger) FatalPanic(ctx context.Context, args ...interface{}) {
+	l.log(ctx, FATAL, args...)
 	panic(fmt.Sprint(args...))
 }

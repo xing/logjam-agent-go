@@ -22,9 +22,8 @@ const (
 	maxBytesAllLinesDefault = 1024 * 1024
 )
 
-// Logger is a minimal interface for the agent to log errors. Application level logging is
-// provided seperately.
-type Logger interface {
+// Printer is a minimal interface for the agent to log errors.
+type Printer interface {
 	Println(args ...interface{})
 }
 
@@ -59,7 +58,7 @@ type Options struct {
 	Rcvhwm              int                 // ZeroMQ socket option of the same name
 	Sndtimeo            int                 // ZeroMQ socket option of the same name
 	Rcvtimeo            int                 // ZeroMQ socket option of the same name
-	Logger              Logger              // Logjam errors are printed using this interface.
+	Logger              Printer             // Logjam errors are printed using this interface.
 	LogLevel            LogLevel            // Only lines with a severity equal to or higher are sent to logjam. Defaults to DEBUG.
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
 	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
