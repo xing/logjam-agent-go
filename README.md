@@ -25,9 +25,18 @@ Install via `go get github.com/xing/logjam-agent-go`.
 ### Initialize the client
 
 ```go
+// create a logger
+logger := logjam.Logger{
+    Logger: log.New(os.Stderr, "", log.StdFlags),
+    LogLevel: logjam.ERROR,
+}
+
+// create the agent
 agent := logjam.NewAgent(&logjam.Options{
 	AppName: "MyApp",
 	EnvName: "production",
+    Logger: logger,
+    LogLevel: logjam.INFO,
 })
 ```
 
