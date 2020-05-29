@@ -45,7 +45,10 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			logjamRequest.Log(FATAL, fmt.Sprintf("%#v", recovered))
+			msg := fmt.Sprintf("%#v", recovered)
+			agent.Logger.Println(msg)
+			logjamRequest.Log(FATAL, msg)
+			logjamRequest.info = requestInfo(r)
 			logjamRequest.Finish(500)
 			panic(recovered)
 		}

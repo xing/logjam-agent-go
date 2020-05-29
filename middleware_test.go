@@ -14,6 +14,7 @@ import (
 	"log"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
@@ -54,15 +55,16 @@ func TestMiddleware(t *testing.T) {
 	setRequestEnv()
 
 	router := mux.NewRouter()
+	logger := Logger{Logger: log.New(ioutil.Discard, "", 0)}
 
 	router.Path("/rest/app/vendor/v1/users/123").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		Log(req.Context(), 500, "First Line")
-		Log(req.Context(), FATAL, "Second Line")
-		Log(req.Context(), ERROR, "Third Line")
-		Log(req.Context(), WARN, "Fourth Line")
-		Log(req.Context(), INFO, "Sixth Line")
+		ctx := req.Context()
+		logger.Debug(ctx, "First Line")
+		logger.Info(ctx, "Second Line")
+		logger.Warn(ctx, "Third Line")
+		logger.Error(ctx, "Fourth Line")
 
-		r := GetRequest(req.Context())
+		r := GetRequest(ctx)
 		r.AddCount("rest_calls", 1)
 		r.AddDuration("rest_time", 5*time.Second)
 		r.SetField("sender_id", "foobar")
@@ -71,6 +73,8 @@ func TestMiddleware(t *testing.T) {
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))
 		})
+
+		logger.FatalPanic(ctx, "Fifth Line")
 	})
 
 	agentOptions := Options{
@@ -83,7 +87,7 @@ func TestMiddleware(t *testing.T) {
 	SetupAgent(&agentOptions)
 	defer ShutdownAgent()
 
-	server := httptest.NewServer(NewMiddleware(router))
+	server := httptest.NewServer(handlers.RecoveryHandler()(NewMiddleware(router)))
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
@@ -178,19 +182,37 @@ func TestMiddleware(t *testing.T) {
 		// it as a normal array and have to use []interface{} instead, making this
 		// test a bit cumbersome.
 		lines := output["lines"].([]interface{})
-		So(lines, ShouldHaveLength, 5)
+		So(lines, ShouldHaveLength, 6)
 
 		line := lines[0].([]interface{})
 		So(line, ShouldHaveLength, 3)
-		So(line[0], ShouldEqual, FATAL) // severity
+		So(line[0], ShouldEqual, DEBUG) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "First Line")
 
 		line = lines[1].([]interface{})
 		So(line, ShouldHaveLength, 3)
-		So(line[0], ShouldEqual, FATAL) // severity
+		So(line[0], ShouldEqual, INFO) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "Second Line")
+
+		line = lines[2].([]interface{})
+		So(line, ShouldHaveLength, 3)
+		So(line[0], ShouldEqual, WARN) // severity
+		So(line[1], shouldHaveTimeFormat, timeFormat)
+		So(line[2], ShouldEqual, "Third Line")
+
+		line = lines[3].([]interface{})
+		So(line, ShouldHaveLength, 3)
+		So(line[0], ShouldEqual, ERROR) // severity
+		So(line[1], shouldHaveTimeFormat, timeFormat)
+		So(line[2], ShouldEqual, "Fourth Line")
+
+		line = lines[4].([]interface{})
+		So(line, ShouldHaveLength, 3)
+		So(line[0], ShouldEqual, FATAL) // severity
+		So(line[1], shouldHaveTimeFormat, timeFormat)
+		So(line[2], ShouldEqual, "Fifth Line")
 	})
 }
 

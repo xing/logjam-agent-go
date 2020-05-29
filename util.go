@@ -3,9 +3,10 @@ package logjam
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
-// LogLevel (modeled afterRuby log levels).
+// LogLevel (modeled after Ruby log levels).
 type LogLevel int
 
 const (
@@ -16,36 +17,92 @@ const (
 	FATAL LogLevel = 4
 )
 
-// Log takes a context to be able to collect all logs within the same request.
-// If you're using gin-gonic, please pass the (*gin.Context).Request.Context()
-// Maximum line length is 2048 characters.
-func Log(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
+// Logger extends the standard log.Logger with methods that send log lines to both logjam
+// and the embedded Logger. Even though all standard logger methods are available, you
+// will want use Fatal, Fatalf and Fatalln only during program startup/shutdown, as they
+// abort the runnning process. To create a log line with log level FATAL use
+// FatalPanic/FatalPanicf. Note that lines which are logged at a level below the
+// configured log level will not be sent to the embedded logger, only forwarded to the
+// logjam logger. Usually one would configure log level DEBUG for development and ERROR or
+// even FATAL for production environments, as logs are sent to logjam and/or Graylog
+// anyway.
+type Logger struct {
+	*log.Logger          // The embedded log.Logger.
+	LogLevel    LogLevel // Log attemtps with a log level lower than this field are not forwarded to the embbeded logger.
+}
+
+func (l *Logger) logf(ctx context.Context, severity LogLevel, format string, args ...interface{}) {
+	line := fmt.Sprintf(format, args...)
 	if request := GetRequest(ctx); request != nil {
-		request.Log(severity, fmt.Sprintf(format, args...))
+		request.Log(severity, line)
+	}
+	if severity >= l.LogLevel {
+		l.Output(3, line)
 	}
 }
 
-// LogDebug calls Log with DEBUG severity.
-func LogDebug(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, DEBUG, format, args...)
+func (l *Logger) log(ctx context.Context, severity LogLevel, args ...interface{}) {
+	line := fmt.Sprint(args...)
+	if request := GetRequest(ctx); request != nil {
+		request.Log(severity, line)
+	}
+	if severity >= l.LogLevel {
+		l.Output(3, line)
+	}
 }
 
-// LogInfo calls Log with INFO severity.
-func LogInfo(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, INFO, format, args...)
+// Debugf logs with DEBUG severity.
+func (l *Logger) Debugf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, DEBUG, format, args...)
 }
 
-// LogWarn calls Log with WARN severity.
-func LogWarn(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, WARN, format, args...)
+// Debug logs with DEBUG severity.
+func (l *Logger) Debug(ctx context.Context, args ...interface{}) {
+	l.log(ctx, DEBUG, args...)
 }
 
-// LogError calls Log with ERROR severity.
-func LogError(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, ERROR, format, args...)
+// Infof logs with INFO severity.
+func (l *Logger) Infof(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, INFO, format, args...)
 }
 
-// LogFatal calls Log with FATAL severity.
-func LogFatal(ctx context.Context, format string, args ...interface{}) {
-	Log(ctx, FATAL, format, args...)
+// Info logs with INFO severity.
+func (l *Logger) Info(ctx context.Context, args ...interface{}) {
+	l.log(ctx, INFO, args...)
+}
+
+// Warnf logs WARN severity.
+func (l *Logger) Warnf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, WARN, format, args...)
+}
+
+// Warn logs with WARN severity.
+func (l *Logger) Warn(ctx context.Context, args ...interface{}) {
+	l.log(ctx, WARN, args...)
+}
+
+// Errorf logs with ERROR severity.
+func (l *Logger) Errorf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, ERROR, format, args...)
+}
+
+// Error logs with ERROR severity.
+func (l *Logger) Error(ctx context.Context, args ...interface{}) {
+	l.log(ctx, ERROR, args...)
+}
+
+// FatalPanicf logs with FATAL severity, then panics. Please note that the standard Logger
+// method exits the program, which is usually not a desired outcome in a long running
+// server application.
+func (l *Logger) FatalPanicf(ctx context.Context, format string, args ...interface{}) {
+	l.logf(ctx, FATAL, format, args...)
+	panic(fmt.Sprintf(format, args...))
+}
+
+// FatalPanic logs with FATAL severity, then panics. Please note that the standard Logger
+// method exits the program, which is usually not a desired outcome in a long running
+// server application.
+func (l *Logger) FatalPanic(ctx context.Context, args ...interface{}) {
+	l.log(ctx, FATAL, args...)
+	panic(fmt.Sprint(args...))
 }
