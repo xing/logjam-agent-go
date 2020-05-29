@@ -91,6 +91,11 @@ func TestMiddleware(t *testing.T) {
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
+		// supress warning message caused by handlers.RecoveryHandler writing a 500
+		// response header on top what we have already written
+		log.SetOutput(ioutil.Discard)
+		defer log.SetOutput(os.Stderr)
+
 		socket, err := zmq4.NewSocket(zmq4.ROUTER)
 		So(err, ShouldBeNil)
 		socket.Bind("tcp://*:9604")
