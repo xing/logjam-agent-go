@@ -14,6 +14,7 @@ import (
 	"log"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
@@ -62,9 +63,8 @@ func TestMiddleware(t *testing.T) {
 		logger.Info(ctx, "Second Line")
 		logger.Warn(ctx, "Third Line")
 		logger.Error(ctx, "Fourth Line")
-		logger.FatalPanic(ctx, "Fifth Line")
 
-		r := GetRequest(req.Context())
+		r := GetRequest(ctx)
 		r.AddCount("rest_calls", 1)
 		r.AddDuration("rest_time", 5*time.Second)
 		r.SetField("sender_id", "foobar")
@@ -73,6 +73,8 @@ func TestMiddleware(t *testing.T) {
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))
 		})
+
+		logger.FatalPanic(ctx, "Fifth Line")
 	})
 
 	agentOptions := Options{
@@ -85,7 +87,7 @@ func TestMiddleware(t *testing.T) {
 	SetupAgent(&agentOptions)
 	defer ShutdownAgent()
 
-	server := httptest.NewServer(NewMiddleware(router))
+	server := httptest.NewServer(handlers.RecoveryHandler()(NewMiddleware(router)))
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
@@ -180,7 +182,7 @@ func TestMiddleware(t *testing.T) {
 		// it as a normal array and have to use []interface{} instead, making this
 		// test a bit cumbersome.
 		lines := output["lines"].([]interface{})
-		So(lines, ShouldHaveLength, 4)
+		So(lines, ShouldHaveLength, 6)
 
 		line := lines[0].([]interface{})
 		So(line, ShouldHaveLength, 3)
