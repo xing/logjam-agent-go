@@ -173,6 +173,9 @@ func augmentConnectionSpec(spec string, defaultPort int) string {
 		return spec
 	}
 	protocol, host, port := matches[1], matches[2], matches[3]
+	if protocol == "inproc" {
+		return spec
+	}
 	if protocol == "" {
 		protocol = "tcp"
 	}

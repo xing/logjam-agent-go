@@ -77,8 +77,18 @@ func TestMiddleware(t *testing.T) {
 		logger.FatalPanic(ctx, "Fifth Line")
 	})
 
+	socket, err := zmq4.NewSocket(zmq4.ROUTER)
+	if err != nil {
+		panic("could not create socket")
+	}
+	err = socket.Bind("inproc://middleware-test")
+	if err != nil {
+		panic("could not bind socket")
+	}
+	defer socket.Close()
+
 	agentOptions := Options{
-		Endpoints:    "127.0.0.1,localhost",
+		Endpoints:    "inproc://middleware-test",
 		AppName:      "appName",
 		EnvName:      "envName",
 		Logger:       logger,
@@ -95,14 +105,6 @@ func TestMiddleware(t *testing.T) {
 		// response header on top what we have already written
 		log.SetOutput(ioutil.Discard)
 		defer log.SetOutput(os.Stderr)
-
-		socket, err := zmq4.NewSocket(zmq4.ROUTER)
-		So(err, ShouldBeNil)
-		So(socket.Bind("tcp://*:9604"), ShouldBeNil)
-		defer func() {
-			socket.SetLinger(0)
-			socket.Close()
-		}()
 
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
 		actionName := "Rest::App::Vendor::V1::Users::Id#get"
