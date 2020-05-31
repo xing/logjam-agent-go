@@ -14,7 +14,6 @@ import (
 	"log"
 
 	"github.com/golang/snappy"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
@@ -45,6 +44,15 @@ func TestObfuscateIP(t *testing.T) {
 			})
 		}
 	})
+}
+
+type recoveryHandler struct {
+	handler http.Handler
+}
+
+func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	defer func() { recover() }()
+	h.handler.ServeHTTP(w, req)
 }
 
 func TestMiddleware(t *testing.T) {
@@ -97,15 +105,10 @@ func TestMiddleware(t *testing.T) {
 	agent := NewAgent(&agentOptions)
 	defer agent.Shutdown()
 
-	server := httptest.NewServer(handlers.RecoveryHandler()(agent.NewMiddleware(router)))
+	server := httptest.NewServer(recoveryHandler{handler: agent.NewMiddleware(router)})
 	defer server.Close()
 
 	Convey("full request/response cycle", t, func() {
-		// supress warning message caused by handlers.RecoveryHandler writing a 500
-		// response header on top what we have already written
-		log.SetOutput(ioutil.Discard)
-		defer log.SetOutput(os.Stderr)
-
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
 		actionName := "Rest::App::Vendor::V1::Users::Id#get"
 

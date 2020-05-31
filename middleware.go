@@ -7,8 +7,6 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-
-	"github.com/felixge/httpsnoop"
 )
 
 type middleware struct {
@@ -44,21 +42,26 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("X-Logjam-Action", logjamRequest.action)
 	header.Set("X-Logjam-Caller-Id", logjamRequest.callerID)
 
+	var stats metrics
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			msg := fmt.Sprintf("%#v", recovered)
 			m.agent.Logger.Println(msg)
 			logjamRequest.Log(FATAL, msg)
 			logjamRequest.info = requestInfo(r)
-			logjamRequest.Finish(500)
+			if !stats.HeaderWritten {
+				w.WriteHeader(500)
+				stats.Code = 500
+			}
+			logjamRequest.Finish(stats.Code)
 			panic(recovered)
 		}
 	}()
 
-	metrics := httpsnoop.CaptureMetrics(m.handler, w, r)
+	captureMetrics(m.handler, w, r, &stats)
 
 	logjamRequest.info = requestInfo(r)
-	logjamRequest.Finish(metrics.Code)
+	logjamRequest.Finish(stats.Code)
 }
 
 func requestInfo(r *http.Request) map[string]interface{} {
