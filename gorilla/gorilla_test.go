@@ -55,11 +55,15 @@ func TestGorillaNameExtraction(t *testing.T) {
 
 	socket, err := zmq4.NewSocket(zmq4.ROUTER)
 	if err != nil {
+		panic("cannot create socket for testing")
+	}
+	err = socket.Bind("tcp://*:9604")
+	if err != nil {
 		panic("cannot bind socket for testing")
 	}
-	socket.Bind("tcp://*:9604")
 	defer func() {
-		socket.Unbind("tcp://*:9604")
+		socket.SetLinger(0)
+		socket.Close()
 	}()
 
 	performAndCheck := func(method string, path string, expectedResonseCode int, expectedActionName string) {

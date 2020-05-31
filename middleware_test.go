@@ -98,9 +98,10 @@ func TestMiddleware(t *testing.T) {
 
 		socket, err := zmq4.NewSocket(zmq4.ROUTER)
 		So(err, ShouldBeNil)
-		socket.Bind("tcp://*:9604")
+		So(socket.Bind("tcp://*:9604"), ShouldBeNil)
 		defer func() {
-			socket.Unbind("tcp://*:9604")
+			socket.SetLinger(0)
+			socket.Close()
 		}()
 
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
