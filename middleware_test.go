@@ -318,7 +318,7 @@ func TestMiddleware(t *testing.T) {
 				So(line, ShouldHaveLength, 3)
 				So(line[0], ShouldEqual, FATAL) // severity
 				So(line[1], shouldHaveTimeFormat, timeFormat)
-				So(line[2], ShouldEqual, `"panic"`)
+				So(line[2], ShouldStartWith, `"panic":`)
 			})
 		}
 	})

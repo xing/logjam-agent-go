@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"runtime/debug"
 )
 
 // MiddlewareOptions defines options for the logjam middleware.
@@ -63,7 +64,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var stats metrics
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			msg := fmt.Sprintf("%#v", recovered)
+			msg := fmt.Sprintf("%#v:\n%s", recovered, string(debug.Stack()))
 			logjamRequest.Log(FATAL, msg)
 			logjamRequest.info = requestInfo(r)
 			if !stats.HeaderWritten {
@@ -79,7 +80,7 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				m.agent.Logger.Println(msg)
 			} else {
 				// We assume that someone up the call chain will log the panic and don't
-				// log anything.
+				// send anything to our logger.
 				panic(recovered)
 			}
 		}
