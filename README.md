@@ -50,7 +50,7 @@ endpoint.
 ```go
 r := mux.NewRouter()
 ...
-r.Use(agent.NewMiddleware)
+r.Use(agent.NewMiddleware{logjam.Middleware{HandlePanics: true}})
 ...
 ```
 

@@ -60,7 +60,8 @@ func TestGorillaNameExtraction(t *testing.T) {
 	agent := logjam.NewAgent(&agentOptions)
 	defer agent.Shutdown()
 
-	server := httptest.NewServer(agent.NewMiddleware(router))
+	router.Use(agent.NewMiddleware(logjam.MiddlewareOptions{}))
+	server := httptest.NewServer(router)
 	defer server.Close()
 
 	performAndCheck := func(method string, path string, expectedResonseCode int, expectedActionName string) {

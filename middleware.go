@@ -9,14 +9,31 @@ import (
 	"regexp"
 )
 
+// MiddlewareOptions defines options for the logjam middleware.
+type MiddlewareOptions struct {
+	HandlePanics bool // Whether the logjam middleware should let panics bubble up the handler chain.
+}
+
 type middleware struct {
+	MiddlewareOptions
 	agent   *Agent
 	handler http.Handler
 }
 
-// NewMiddleware can be used to wrap any standard http.Handler.
-func (a *Agent) NewMiddleware(handler http.Handler) http.Handler {
-	return &middleware{agent: a, handler: handler}
+// NewHandler can be used to wrap any standard http.Handler. By default it handles
+// panics caused by the next handler in the chain by logging an error message to os.Stderr
+// and sending the same message to logjam. If the handler hasn't already written something
+// to the response writer, or set its response code, it will write a 500 response with an
+// empty response body.
+func (a *Agent) NewHandler(handler http.Handler, options MiddlewareOptions) http.Handler {
+	return &middleware{agent: a, handler: handler, MiddlewareOptions: options}
+}
+
+// NewMiddleware is a convenience function to be used with the gorilla/mux package.
+func (a *Agent) NewMiddleware(options MiddlewareOptions) func(http.Handler) http.Handler {
+	return func(handler http.Handler) http.Handler {
+		return a.NewHandler(handler, options)
+	}
 }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +63,6 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			msg := fmt.Sprintf("%#v", recovered)
-			m.agent.Logger.Println(msg)
 			logjamRequest.Log(FATAL, msg)
 			logjamRequest.info = requestInfo(r)
 			if !stats.HeaderWritten {
@@ -54,10 +70,19 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				stats.Code = 500
 			}
 			logjamRequest.Finish(stats.Code)
-			panic(recovered)
+			if m.HandlePanics {
+				// We are in a dilemma here: if the user has already logged information
+				// regarding the panic, we will log the panic twice. OTOH, if it's a panic
+				// caused by an underlying library used by the program and we don't log
+				// it, it might never be logged anywhere.
+				m.agent.Logger.Println(msg)
+			} else {
+				// We assume that someone up the call chain will log the panic and don't
+				// log anything.
+				panic(recovered)
+			}
 		}
 	}()
-
 	captureMetrics(m.handler, w, r, &stats)
 
 	logjamRequest.info = requestInfo(r)

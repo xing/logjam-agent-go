@@ -47,11 +47,12 @@ func TestObfuscateIP(t *testing.T) {
 }
 
 type recoveryHandler struct {
-	handler http.Handler
+	panicked *bool
+	handler  http.Handler
 }
 
 func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	defer func() { recover() }()
+	defer func() { *h.panicked = recover() != nil }()
 	h.handler.ServeHTTP(w, req)
 }
 
@@ -81,8 +82,23 @@ func TestMiddleware(t *testing.T) {
 			w.WriteHeader(200)
 			w.Write([]byte(`some body`))
 		})
+	})
 
-		logger.FatalPanic(ctx, "Fifth Line")
+	router.Path("/panic-before-writing-header").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		// TODO: shoould we remove the FatalPanic method from the logger?
+		// ctx := req.Context()
+		// logger.FatalPanic(ctx, "panic")
+		panic("panic")
+	})
+
+	router.Path("/panic-after-writing-header").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.WriteHeader(200)
+		// TODO: shoould we remove the FatalPanic method from the logger?
+		// ctx := req.Context()
+		// logger.FatalPanic(ctx, "panic")
+		panic("panic")
 	})
 
 	socket, err := zmq4.NewSocket(zmq4.ROUTER)
@@ -105,10 +121,11 @@ func TestMiddleware(t *testing.T) {
 	agent := NewAgent(&agentOptions)
 	defer agent.Shutdown()
 
-	server := httptest.NewServer(recoveryHandler{handler: agent.NewMiddleware(router)})
-	defer server.Close()
+	Convey("full request/response cycle - happy path", t, func() {
+		m := agent.NewMiddleware(MiddlewareOptions{})
+		server := httptest.NewServer(m(router))
+		defer server.Close()
 
-	Convey("full request/response cycle", t, func() {
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
 		actionName := "Rest::App::Vendor::V1::Users::Id#get"
 
@@ -163,7 +180,6 @@ func TestMiddleware(t *testing.T) {
 		So(output["rest_calls"], ShouldEqual, 1)
 		So(output["rest_time"], ShouldEqual, 5000)
 		So(output["view_time"], ShouldBeGreaterThanOrEqualTo, 100)
-		So(output["total_time"], ShouldAlmostEqual, 100, 10)
 		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
@@ -189,11 +205,8 @@ func TestMiddleware(t *testing.T) {
 
 		So(requestInfo["body_parameters"], ShouldBeNil)
 
-		// Since Logjam requires an JSON array with mixed types, we can't express
-		// it as a normal array and have to use []interface{} instead, making this
-		// test a bit cumbersome.
 		lines := output["lines"].([]interface{})
-		So(lines, ShouldHaveLength, 6)
+		So(lines, ShouldHaveLength, 4)
 
 		line := lines[0].([]interface{})
 		So(line, ShouldHaveLength, 3)
@@ -218,12 +231,102 @@ func TestMiddleware(t *testing.T) {
 		So(line[0], ShouldEqual, ERROR) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "Fourth Line")
+	})
 
-		line = lines[4].([]interface{})
-		So(line, ShouldHaveLength, 3)
-		So(line[0], ShouldEqual, FATAL) // severity
-		So(line[1], shouldHaveTimeFormat, timeFormat)
-		So(line[2], ShouldEqual, "Fifth Line")
+	Convey("full request/response cycle - handling panics", t, func() {
+		tests := []struct {
+			Path       string
+			ActionName string
+			Code       int
+			Panic      string
+		}{
+			{
+				Path:       "/panic-before-writing-header",
+				ActionName: "PanicBeforeWritingHeader#get",
+				Code:       500,
+				Panic:      "supressed",
+			},
+			{
+				Path:       "/panic-after-writing-header",
+				ActionName: "PanicAfterWritingHeader#get",
+				Code:       200,
+				Panic:      "supressed",
+			},
+			{
+				Path:       "/panic-before-writing-header",
+				ActionName: "PanicBeforeWritingHeader#get",
+				Code:       500,
+				Panic:      "bubbling up",
+			},
+		}
+
+		for _, test := range tests {
+			Convey(test.Path+" - "+test.Panic, func() {
+				handlePanics := test.Panic == "suppressed"
+				panicked := false
+				r := agent.NewHandler(router, MiddlewareOptions{HandlePanics: handlePanics})
+				server := httptest.NewServer(recoveryHandler{handler: r, panicked: &panicked})
+				defer server.Close()
+
+				req, err := http.NewRequest("GET", server.URL+test.Path, nil)
+				So(err, ShouldBeNil)
+
+				now := time.Now()
+				res, err := server.Client().Do(req)
+				So(err, ShouldBeNil)
+				So(panicked, ShouldEqual, !handlePanics)
+
+				So(res.StatusCode, ShouldEqual, test.Code)
+				requestID := res.Header.Get("X-Logjam-Request-Id")
+				So(requestID, ShouldStartWith, "appName-envName-")
+				requestParts := strings.Split(requestID, "-")
+				uuid := requestParts[len(requestParts)-1]
+				So(res.Header.Get("X-Logjam-Action"), ShouldEqual, test.ActionName)
+
+				msg, err := socket.RecvMessage(0)
+				So(err, ShouldBeNil)
+				So(msg, ShouldHaveLength, 5)
+
+				So(msg[1], ShouldEqual, agent.AppName+"-"+agent.EnvName)
+				So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
+
+				payload, err := snappy.Decode(nil, []byte(msg[3]))
+				So(err, ShouldBeNil)
+
+				output := map[string]interface{}{}
+				json.Unmarshal([]byte(payload), &output)
+
+				So(output["action"], ShouldEqual, test.ActionName)
+				So(output["host"], ShouldEqual, "test-machine")
+				So(output["ip"], ShouldEqual, "127.0.0.XXX")
+				So(output["process_id"].(float64), ShouldNotEqual, 0)
+				So(output["request_id"], ShouldEqual, uuid)
+				So(output["started_at"], shouldHaveTimeFormat, timeFormat)
+				startedAt, err := time.ParseInLocation(timeFormat, output["started_at"].(string), now.Location())
+				So(err, ShouldBeNil)
+				So(uint64(startedAt.UnixNano()/1000000), ShouldEqual, output["started_ms"])
+				So(output["started_ms"], ShouldAlmostEqual, uint64(now.UnixNano()/1000000), 100)
+				So(output["total_time"], ShouldBeGreaterThan, 100)
+				So(output["total_time"], ShouldAlmostEqual, 100, 10)
+				So(output["datacenter"], ShouldEqual, "dc")
+				So(output["cluster"], ShouldEqual, "a")
+				So(output["namespace"], ShouldEqual, "logjam")
+
+				requestInfo := output["request_info"].(map[string]interface{})
+				So(requestInfo["method"], ShouldEqual, "GET")
+
+				So(requestInfo["url"], ShouldContainSubstring, test.Path)
+
+				lines := output["lines"].([]interface{})
+				So(lines, ShouldHaveLength, 1)
+
+				line := lines[0].([]interface{})
+				So(line, ShouldHaveLength, 3)
+				So(line[0], ShouldEqual, FATAL) // severity
+				So(line[1], shouldHaveTimeFormat, timeFormat)
+				So(line[2], ShouldEqual, `"panic"`)
+			})
+		}
 	})
 }
 
