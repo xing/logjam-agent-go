@@ -20,11 +20,12 @@ type middleware struct {
 	handler http.Handler
 }
 
-// NewHandler can be used to wrap any standard http.Handler. By default it handles
-// panics caused by the next handler in the chain by logging an error message to os.Stderr
-// and sending the same message to logjam. If the handler hasn't already written something
-// to the response writer, or set its response code, it will write a 500 response with an
-// empty response body.
+// NewHandler can be used to wrap any standard http.Handler. It handles panics caused by
+// the next handler in the chain by logging an error message to os.Stderr and sending the
+// same message to logjam. If the handler hasn't already written something to the response
+// writer, or set its response code, it will write a 500 response with an empty response
+// body. If the middleware option HandlePanics is false, it will panic again with the
+// original object.
 func (a *Agent) NewHandler(handler http.Handler, options MiddlewareOptions) http.Handler {
 	return &middleware{agent: a, handler: handler, MiddlewareOptions: options}
 }
