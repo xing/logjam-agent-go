@@ -89,3 +89,24 @@ func (l *Logger) Errorf(ctx context.Context, format string, args ...interface{})
 func (l *Logger) Error(ctx context.Context, args ...interface{}) {
 	l.log(ctx, ERROR, args...)
 }
+
+// Exception logs an exception tag and adds the exception to the logjam request.
+func (l *Logger) Exception(ctx context.Context, tag string, args ...interface{}) {
+	if request := GetRequest(ctx); request != nil {
+		request.AddException(tag)
+	}
+	logged := []interface{}{tag + ": "}
+	logged = append(logged, args...)
+	l.log(ctx, ERROR, logged...)
+}
+
+// Exceptionf logs an exception tag and adds the exception to the logjam request.
+func (l *Logger) Exceptionf(ctx context.Context, tag string, format string, args ...interface{}) {
+	if request := GetRequest(ctx); request != nil {
+		request.AddException(tag)
+	}
+	format = "%s: " + format
+	logged := []interface{}{tag}
+	logged = append(logged, args...)
+	l.logf(ctx, ERROR, format, logged...)
+}

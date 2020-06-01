@@ -32,17 +32,19 @@ type Request struct {
 	fields             map[string]interface{}   // Additional kye vale pairs for JSON payload sent to logjam.
 	info               map[string]interface{}   // Information about the associated HTTP request.
 	ip                 string                   // IP of the HTTP request originator.
+	exceptions         map[string]bool          // List of exception tags to send to logjam.
 }
 
 // NewRequest creates a new logjam request for a given action name.
 func (a *Agent) NewRequest(action string) *Request {
 	r := Request{
-		agent:     a,
-		action:    action,
-		durations: map[string]time.Duration{},
-		counts:    map[string]int64{},
-		fields:    map[string]interface{}{},
-		logLines:  []interface{}{},
+		agent:      a,
+		action:     action,
+		durations:  map[string]time.Duration{},
+		counts:     map[string]int64{},
+		fields:     map[string]interface{}{},
+		logLines:   []interface{}{},
+		exceptions: map[string]bool{},
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
@@ -119,6 +121,11 @@ func (r *Request) GetField(key string) interface{} {
 	return r.fields[key]
 }
 
+// AddException adds an exception tag to be sent to logjam.
+func (r *Request) AddException(name string) {
+	r.exceptions[name] = true
+}
+
 // AddCount increments a counter metric associated with this request.
 func (r *Request) AddCount(key string, value int64) {
 	r.counts[key] += value
@@ -186,6 +193,13 @@ func (r *Request) logjamPayload(code int) map[string]interface{} {
 	}
 	if r.callerAction != "" {
 		msg["caller_action"] = r.callerAction
+	}
+	if len(r.exceptions) > 0 {
+		exceptions := []string{}
+		for name := range r.exceptions {
+			exceptions = append(exceptions, name)
+		}
+		msg["exceptions"] = exceptions
 	}
 	for key, val := range requestEnv {
 		msg[key] = val

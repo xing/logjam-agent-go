@@ -72,6 +72,8 @@ func TestMiddleware(t *testing.T) {
 		logger.Info(ctx, "Second Line")
 		logger.Warn(ctx, "Third Line")
 		logger.Error(ctx, "Fourth Line")
+		logger.Exception(ctx, "X1", "found")
+		logger.Exceptionf(ctx, "X2", "occurred %d time", 1)
 
 		r := GetRequest(ctx)
 		r.AddCount("rest_calls", 1)
@@ -179,6 +181,11 @@ func TestMiddleware(t *testing.T) {
 		So(output["namespace"], ShouldEqual, "logjam")
 		So(output["sender_id"], ShouldEqual, "foobar")
 
+		exceptions := output["exceptions"]
+		So(exceptions, ShouldHaveLength, 2)
+		So(exceptions, ShouldContain, "X1")
+		So(exceptions, ShouldContain, "X2")
+
 		requestInfo := output["request_info"].(map[string]interface{})
 		So(requestInfo["method"], ShouldEqual, "GET")
 
@@ -200,7 +207,7 @@ func TestMiddleware(t *testing.T) {
 		So(requestInfo["body_parameters"], ShouldBeNil)
 
 		lines := output["lines"].([]interface{})
-		So(lines, ShouldHaveLength, 4)
+		So(lines, ShouldHaveLength, 6)
 
 		line := lines[0].([]interface{})
 		So(line, ShouldHaveLength, 3)
@@ -225,6 +232,19 @@ func TestMiddleware(t *testing.T) {
 		So(line[0], ShouldEqual, ERROR) // severity
 		So(line[1], shouldHaveTimeFormat, timeFormat)
 		So(line[2], ShouldEqual, "Fourth Line")
+
+		line = lines[4].([]interface{})
+		So(line, ShouldHaveLength, 3)
+		So(line[0], ShouldEqual, ERROR) // severity
+		So(line[1], shouldHaveTimeFormat, timeFormat)
+		So(line[2], ShouldEqual, "X1: found")
+
+		line = lines[5].([]interface{})
+		So(line, ShouldHaveLength, 3)
+		So(line[0], ShouldEqual, ERROR) // severity
+		So(line[1], shouldHaveTimeFormat, timeFormat)
+		So(line[2], ShouldEqual, "X2: occurred 1 time")
+
 	})
 
 	Convey("full request/response cycle - handling panics", t, func() {
