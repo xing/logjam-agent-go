@@ -86,18 +86,12 @@ func TestMiddleware(t *testing.T) {
 
 	router.Path("/panic-before-writing-header").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		time.Sleep(100 * time.Millisecond)
-		// TODO: shoould we remove the FatalPanic method from the logger?
-		// ctx := req.Context()
-		// logger.FatalPanic(ctx, "panic")
 		panic("panic")
 	})
 
 	router.Path("/panic-after-writing-header").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(200)
-		// TODO: shoould we remove the FatalPanic method from the logger?
-		// ctx := req.Context()
-		// logger.FatalPanic(ctx, "panic")
 		panic("panic")
 	})
 
