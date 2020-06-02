@@ -276,9 +276,9 @@ func TestMiddleware(t *testing.T) {
 
 		for _, test := range tests {
 			Convey(test.Path+" - "+test.Panic, func() {
-				handlePanics := test.Panic == "suppressed"
+				bubblePanics := test.Panic == "bubbling up"
 				panicked := false
-				r := agent.NewHandler(router, MiddlewareOptions{HandlePanics: handlePanics})
+				r := agent.NewHandler(router, MiddlewareOptions{BubblePanics: bubblePanics})
 				server := httptest.NewServer(recoveryHandler{handler: r, panicked: &panicked})
 				defer server.Close()
 
@@ -288,7 +288,7 @@ func TestMiddleware(t *testing.T) {
 				now := time.Now()
 				res, err := server.Client().Do(req)
 				So(err, ShouldBeNil)
-				So(panicked, ShouldEqual, !handlePanics)
+				So(panicked, ShouldEqual, bubblePanics)
 
 				So(res.StatusCode, ShouldEqual, test.Code)
 				requestID := res.Header.Get("X-Logjam-Request-Id")

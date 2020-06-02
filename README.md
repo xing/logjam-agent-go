@@ -51,7 +51,7 @@ endpoint.
 r := mux.NewRouter()
 ...
 server := http.Server{
-	Handler: agent.NewHandler(r, logjam.Middleware{HandlePanics: true})
+	Handler: agent.NewHandler(r, logjam.Middleware{BubblePanics: false})
 	...
 }
 ```

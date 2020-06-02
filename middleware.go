@@ -12,7 +12,7 @@ import (
 
 // MiddlewareOptions defines options for the logjam middleware.
 type MiddlewareOptions struct {
-	HandlePanics bool // Whether the logjam middleware should let panics bubble up the handler chain.
+	BubblePanics bool // Whether the logjam middleware should let panics bubble up the handler chain.
 }
 
 type middleware struct {
@@ -25,7 +25,7 @@ type middleware struct {
 // the next handler in the chain by logging an error message to os.Stderr and sending the
 // same message to logjam. If the handler hasn't already written something to the response
 // writer, or set its response code, it will write a 500 response with an empty response
-// body. If the middleware option HandlePanics is false, it will panic again with the
+// body. If the middleware option BubblePanics is true, it will panic again with the
 // original object.
 func (a *Agent) NewHandler(handler http.Handler, options MiddlewareOptions) http.Handler {
 	return &middleware{agent: a, handler: handler, MiddlewareOptions: options}
@@ -72,16 +72,16 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				stats.Code = 500
 			}
 			logjamRequest.Finish(stats.Code)
-			if m.HandlePanics {
+			if m.BubblePanics {
+				// We assume that someone up the call chain will log the panic and don't
+				// send anything to our logger.
+				panic(recovered)
+			} else {
 				// We are in a dilemma here: if the user has already logged information
 				// regarding the panic, we will log the panic twice. OTOH, if it's a panic
 				// caused by an underlying library used by the program and we don't log
 				// it, it might never be logged anywhere.
 				m.agent.Logger.Println(msg)
-			} else {
-				// We assume that someone up the call chain will log the panic and don't
-				// send anything to our logger.
-				panic(recovered)
 			}
 		}
 	}()
