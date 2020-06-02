@@ -19,9 +19,8 @@ const (
 
 // Logger extends the standard log.Logger with methods that send log lines to both logjam
 // and the embedded Logger. Even though all standard logger methods are available, you
-// will want use Fatal, Fatalf and Fatalln only during program startup/shutdown, as they
-// abort the runnning process. To create a log line with log level FATAL use
-// FatalPanic/FatalPanicf. Note that lines which are logged at a level below the
+// will want to use Fatal, Fatalf and Fatalln only during program startup/shutdown, as
+// they abort the runnning process. Note that lines which are logged at a level below the
 // configured log level will not be sent to the embedded logger, only forwarded to the
 // logjam logger. Usually one would configure log level DEBUG for development and ERROR or
 // even FATAL for production environments, as logs are sent to logjam and/or Graylog
@@ -91,18 +90,23 @@ func (l *Logger) Error(ctx context.Context, args ...interface{}) {
 	l.log(ctx, ERROR, args...)
 }
 
-// FatalPanicf logs with FATAL severity, then panics. Please note that the standard Logger
-// method exits the program, which is usually not a desired outcome in a long running
-// server application.
-func (l *Logger) FatalPanicf(ctx context.Context, format string, args ...interface{}) {
-	l.logf(ctx, FATAL, format, args...)
-	panic(fmt.Sprintf(format, args...))
+// Exception logs an exception tag and adds the exception to the logjam request.
+func (l *Logger) Exception(ctx context.Context, tag string, args ...interface{}) {
+	if request := GetRequest(ctx); request != nil {
+		request.AddException(tag)
+	}
+	logged := []interface{}{tag + ": "}
+	logged = append(logged, args...)
+	l.log(ctx, ERROR, logged...)
 }
 
-// FatalPanic logs with FATAL severity, then panics. Please note that the standard Logger
-// method exits the program, which is usually not a desired outcome in a long running
-// server application.
-func (l *Logger) FatalPanic(ctx context.Context, args ...interface{}) {
-	l.log(ctx, FATAL, args...)
-	panic(fmt.Sprint(args...))
+// Exceptionf logs an exception tag and adds the exception to the logjam request.
+func (l *Logger) Exceptionf(ctx context.Context, tag string, format string, args ...interface{}) {
+	if request := GetRequest(ctx); request != nil {
+		request.AddException(tag)
+	}
+	format = "%s: " + format
+	logged := []interface{}{tag}
+	logged = append(logged, args...)
+	l.logf(ctx, ERROR, format, logged...)
 }

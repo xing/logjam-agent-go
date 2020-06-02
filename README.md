@@ -27,18 +27,23 @@ Install via `go get github.com/xing/logjam-agent-go`.
 ```go
 // create a logger
 logger := logjam.Logger{
-    Logger: log.New(os.Stderr, "", log.StdFlags),
-    LogLevel: logjam.ERROR,
+	Logger: log.New(os.Stderr, "", log.StdFlags),
+	LogLevel: logjam.ERROR,
 }
 
-// create the agent
+// create an agent
 agent := logjam.NewAgent(&logjam.Options{
 	AppName: "MyApp",
 	EnvName: "production",
-    Logger: logger,
-    LogLevel: logjam.INFO,
+	Logger: logger,
+	LogLevel: logjam.INFO,
 })
 ```
+
+Note that logger and the agent have individual log levels: the one on the logger
+determines the log level for lines sent to the device it is attached to (`os.Stderr` in
+this example), whereas the one on the agent determines which lines are sent to the logjam
+endpoint.
 
 ### Use the logjam middleware
 
@@ -46,7 +51,7 @@ agent := logjam.NewAgent(&logjam.Options{
 r := mux.NewRouter()
 ...
 server := http.Server{
-	Handler: handlers.RecoveryHandler()(agent.NewMiddleware(r))
+	Handler: agent.NewHandler(r, logjam.Middleware{HandlePanics: true})
 	...
 }
 ```

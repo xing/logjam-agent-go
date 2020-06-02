@@ -41,8 +41,18 @@ func TestGorillaNameExtraction(t *testing.T) {
 	router.Path("/allmethods").HandlerFunc(somebody)
 	router.Path("/simple").Methods("GET").HandlerFunc(somebody)
 
+	socket, err := zmq4.NewSocket(zmq4.ROUTER)
+	if err != nil {
+		panic("cannot create socket for testing")
+	}
+	err = socket.Bind("inproc://gorilla-test")
+	if err != nil {
+		panic("cannot bind socket for testing")
+	}
+	defer socket.Close()
+
 	agentOptions := logjam.Options{
-		Endpoints: "127.0.0.1,localhost",
+		Endpoints: "inproc://gorilla-test",
 		AppName:   "appName",
 		EnvName:   "envName",
 		Logger:    log.New(ioutil.Discard, "", 0),
@@ -50,17 +60,9 @@ func TestGorillaNameExtraction(t *testing.T) {
 	agent := logjam.NewAgent(&agentOptions)
 	defer agent.Shutdown()
 
-	server := httptest.NewServer(agent.NewMiddleware(router))
+	router.Use(agent.NewMiddleware(logjam.MiddlewareOptions{}))
+	server := httptest.NewServer(router)
 	defer server.Close()
-
-	socket, err := zmq4.NewSocket(zmq4.ROUTER)
-	if err != nil {
-		panic("cannot bind socket for testing")
-	}
-	socket.Bind("tcp://*:9604")
-	defer func() {
-		socket.Unbind("tcp://*:9604")
-	}()
 
 	performAndCheck := func(method string, path string, expectedResonseCode int, expectedActionName string) {
 		req, err := http.NewRequest(method, server.URL+path, nil)
