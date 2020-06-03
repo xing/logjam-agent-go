@@ -58,7 +58,7 @@ type Options struct {
 	Logger              Printer             // Logjam errors are printed using this interface.
 	LogLevel            LogLevel            // Only lines with a severity equal to or higher are sent to logjam. Defaults to DEBUG.
 	ActionNameExtractor ActionNameExtractor // Function to transform path segments to logjam action names.
-	ObfuscateIPs        bool                // Whether IPa addresses should be obfuscated.
+	ObfuscateIPs        bool                // Whether IP addresses should be obfuscated.
 	MaxLineLength       int                 // Long lines truncation threshold, defaults to 2048.
 	MaxBytesAllLines    int                 // Max number of bytes of all log lines, defaults to 1MB.
 }

@@ -44,8 +44,8 @@ func ActionName(route *mux.Route, actionName string) {
 }
 
 // SetupRoutes traverses all routes of the given router and replaces handlers which have
-// no logjam action name attached yet handler with a new handler that uses an action name
-// derived from the path template to. It must be called after all routes have been set up
+// no logjam action name attached yet with a new handler that uses an action name
+// derived from the path template. It must be called after all routes have been set up
 // on the router.
 func SetupRoutes(r *mux.Router) {
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
