@@ -184,7 +184,19 @@ func (r *Request) Finish(code int) {
 	r.agent.sendMessage(data)
 }
 
+func (r *Request) durationCorrectionFactor(totalTime float64) float64 {
+	s := float64(0)
+	for _, d := range r.durations {
+		s += float64(d / time.Millisecond)
+	}
+	if s > totalTime {
+		return totalTime / s
+	}
+	return 1.0
+}
+
 func (r *Request) logjamPayload(code int) map[string]interface{} {
+	totalTime := r.totalTime()
 	msg := map[string]interface{}{
 		"action":     r.action,
 		"code":       code,
@@ -193,7 +205,7 @@ func (r *Request) logjamPayload(code int) map[string]interface{} {
 		"severity":   r.severity,
 		"started_at": r.startTime.Format(timeFormat),
 		"started_ms": r.startTime.UnixNano() / 1000000,
-		"total_time": r.totalTime(),
+		"total_time": totalTime,
 	}
 	if len(r.logLines) > 0 {
 		msg["lines"] = r.logLines
@@ -220,8 +232,9 @@ func (r *Request) logjamPayload(code int) map[string]interface{} {
 	for key, val := range requestEnv {
 		msg[key] = val
 	}
+	c := r.durationCorrectionFactor(totalTime)
 	for key, duration := range r.durations {
-		msg[key] = float64(duration / time.Millisecond)
+		msg[key] = c * float64(duration/time.Millisecond)
 	}
 	for key, count := range r.counts {
 		msg[key] = count

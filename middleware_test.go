@@ -77,7 +77,7 @@ func TestMiddleware(t *testing.T) {
 
 		r := GetRequest(ctx)
 		r.AddCount("rest_calls", 1)
-		r.AddDuration("rest_time", 5*time.Second)
+		r.AddDuration("rest_time", 100*time.Millisecond)
 		r.SetField("sender_id", "foobar")
 		r.MeasureDuration("view_time", func() {
 			time.Sleep(100 * time.Millisecond)
@@ -174,8 +174,10 @@ func TestMiddleware(t *testing.T) {
 		So(output["total_time"], ShouldBeGreaterThan, 100)
 		So(output["total_time"], ShouldAlmostEqual, 100, 10)
 		So(output["rest_calls"], ShouldEqual, 1)
-		So(output["rest_time"], ShouldEqual, 5000)
-		So(output["view_time"], ShouldBeGreaterThanOrEqualTo, 100)
+		totalTime := output["total_time"].(float64)
+		viewTime := output["view_time"].(float64)
+		restTime := output["rest_time"].(float64)
+		So(totalTime, ShouldBeGreaterThanOrEqualTo, viewTime+restTime)
 		So(output["datacenter"], ShouldEqual, "dc")
 		So(output["cluster"], ShouldEqual, "a")
 		So(output["namespace"], ShouldEqual, "logjam")
