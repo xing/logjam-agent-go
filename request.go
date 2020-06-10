@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang/snappy"
@@ -33,6 +34,7 @@ type Request struct {
 	info               map[string]interface{}   // Information about the associated HTTP request.
 	ip                 string                   // IP of the HTTP request originator.
 	exceptions         map[string]bool          // List of exception tags to send to logjam.
+	mutex              sync.Mutex               // Mutex for protecting mutators
 }
 
 // NewRequest creates a new logjam request for a given action name.
@@ -87,6 +89,8 @@ func GetRequest(ctx context.Context) *Request {
 
 // Log adds a log line to be sent to logjam to the request.
 func (r *Request) Log(severity LogLevel, line string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	if severity > FATAL {
 		severity = FATAL
 	} else if severity < DEBUG {
@@ -113,31 +117,43 @@ func (r *Request) Log(severity LogLevel, line string) {
 
 // SetField sets an additional key value pair on the request.
 func (r *Request) SetField(key string, value interface{}) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.fields[key] = value
 }
 
 // GetField retrieves sets an additional key value pair on the request.
 func (r *Request) GetField(key string) interface{} {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	return r.fields[key]
 }
 
 // AddException adds an exception tag to be sent to logjam.
 func (r *Request) AddException(name string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.exceptions[name] = true
 }
 
 // AddCount increments a counter metric associated with this request.
 func (r *Request) AddCount(key string, value int64) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.counts[key] += value
 }
 
 // Count behaves like AddCount with a value of 1
 func (r *Request) Count(key string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.AddCount(key, 1)
 }
 
 // AddDuration increases increments a timer metric associated with this request.
 func (r *Request) AddDuration(key string, value time.Duration) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	if _, set := r.durations[key]; set {
 		r.durations[key] += value
 	} else {
