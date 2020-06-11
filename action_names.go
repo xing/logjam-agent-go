@@ -20,6 +20,9 @@ func ignoreActionName(s string) bool {
 
 func legacyActionNameFrom(method, path string) string {
 	parts := legacyActionNameParts(method, path)
+	if len(parts) == 0 {
+		return "Unknown#unknown"
+	}
 	class := strings.Replace(strings.Join(parts[0:len(parts)-1], "::"), "-", "", -1)
 	suffix := strings.Replace(strings.ToLower(parts[len(parts)-1]), "-", "_", -1)
 	if class == "" {
@@ -54,9 +57,13 @@ func DefaultActionNameExtractor(r *http.Request) string {
 }
 
 func defaultActionNameFrom(method, path string) string {
+	methodStr := strings.ToLower(method)
 	parts := defaultActionNameParts(method, path)
+	if len(parts) == 0 {
+		return "Unknown#" + methodStr
+	}
 	class := strings.Join(parts, "::")
-	return class + "#" + strings.ToLower(method)
+	return class + "#" + methodStr
 }
 
 func defaultActionNameParts(method, path string) []string {

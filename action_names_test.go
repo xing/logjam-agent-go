@@ -9,6 +9,11 @@ import (
 func TestLegacyActionNameExtractor(t *testing.T) {
 	Convey("LegacyActionNameExtractor", t, func() {
 		Convey("extracting action names", func() {
+			So(legacyActionNameFrom("GET", "/"), ShouldEqual,
+				"Unknown#unknown")
+			So(legacyActionNameFrom("GET", "/something"), ShouldEqual,
+				"Unknown#something")
+
 			So(legacyActionNameFrom("GET", "/swagger/index.html"), ShouldEqual,
 				"Swagger#index.html")
 
@@ -48,6 +53,11 @@ func TestLegacyActionNameExtractor(t *testing.T) {
 func TestDefaultActionNameExtractor(t *testing.T) {
 	Convey("DefaultActionNameExtractor", t, func() {
 		Convey("extracting action names", func() {
+			So(defaultActionNameFrom("GET", "/"), ShouldEqual,
+				"Unknown#get")
+			So(defaultActionNameFrom("GET", "/something"), ShouldEqual,
+				"Something#get")
+
 			So(defaultActionNameFrom("GET", "/swagger/index.html"), ShouldEqual,
 				"Swagger::Index.Html#get")
 
