@@ -190,7 +190,7 @@ func (r *Request) durationCorrectionFactor(totalTime float64) float64 {
 		s += float64(d / time.Millisecond)
 	}
 	if s > totalTime {
-		return totalTime / s
+		return (totalTime - 0.1) / s
 	}
 	return 1.0
 }
