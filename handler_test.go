@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func Test_notFoundHandler(t *testing.T) {
@@ -23,24 +25,18 @@ func Test_notFoundHandler(t *testing.T) {
 
 	rs := rr.Result()
 
-	if rs.StatusCode != http.StatusNotFound {
-		t.Errorf("want %d; got %d", http.StatusNotFound, rs.StatusCode)
-	}
+	Convey("handler response", t, func() {
+		So(rs.StatusCode, ShouldEqual, http.StatusNotFound)
+		So(rr.Header().Get("X-Logjam-Action"), ShouldEqual, "System#notFound")
 
-	if action := rr.Header().Get("X-Logjam-Action"); action != "System#notFound" {
-		t.Errorf("X-Logjam-Action header does not match: got %v want %v",
-			action, "System#notFound")
-	}
+		defer rs.Body.Close()
+		body, err := ioutil.ReadAll(rs.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	defer rs.Body.Close()
-	body, err := ioutil.ReadAll(rs.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if string(body) != "Not Found\n" {
-		t.Errorf("want body to equal %q; got %q", "Not Found\n", string(body))
-	}
+		So(string(body), ShouldEqual, "Not Found\n")
+	})
 }
 
 func Test_methodNotAllowedHandler(t *testing.T) {
@@ -59,12 +55,8 @@ func Test_methodNotAllowedHandler(t *testing.T) {
 
 	rs := rr.Result()
 
-	if rs.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("want %d; got %d", http.StatusMethodNotAllowed, rs.StatusCode)
-	}
-
-	if action := rr.Header().Get("X-Logjam-Action"); action != "System#methodNotAllowed" {
-		t.Errorf("X-Logjam-Action header does not match: got %v want %v",
-			action, "System#methodNotAllowed")
-	}
+	Convey("handler response", t, func() {
+		So(rs.StatusCode, ShouldEqual, http.StatusMethodNotAllowed)
+		So(rr.Header().Get("X-Logjam-Action"), ShouldEqual, "System#methodNotAllowed")
+	})
 }
