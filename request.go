@@ -47,6 +47,7 @@ func (a *Agent) NewRequest(action string) *Request {
 		fields:     map[string]interface{}{},
 		logLines:   []interface{}{},
 		exceptions: map[string]bool{},
+		severity:   INFO,
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
