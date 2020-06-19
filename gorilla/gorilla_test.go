@@ -103,5 +103,6 @@ func TestGorillaNameExtraction(t *testing.T) {
 		performAndCheck("GET", "/simple", 200, "Simple#get")
 		performAndCheck("POST", "/allmethods", 200, "Allmethods#post")
 
+		performAndCheck("HEAD", "/rest/users/123", 405, "Rest::Users#show")
 	})
 }

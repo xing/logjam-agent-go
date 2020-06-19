@@ -13,9 +13,10 @@ import (
 // handler encapsulates the original handler and information how to determine the full
 // action name for a request.
 type handler struct {
-	action       string       // the precomputed action name
-	appendMethod bool         // whether the action needs to be augmented by the HTTP request method in lowercase
-	handler      http.Handler // the original handler
+	action                  string       // the precomputed action name
+	appendMethod            bool         // whether the action needs to be augmented by the HTTP request method in lowercase
+	handler                 http.Handler // the original handler
+	methodNotAllowedHandler bool         // whether this is a method not allowed handler
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -43,12 +44,85 @@ func ActionName(route *mux.Route, actionName string) {
 	})
 }
 
+var allMethods = []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+
+type hi struct {
+	methods map[string]bool
+	handler handler
+}
+
+func (i *hi) addMethods(methods []string) *hi {
+	for _, m := range methods {
+		i.methods[m] = true
+	}
+	return i
+}
+
+func (i *hi) methodComplement() []string {
+	c := []string{}
+	for _, m := range allMethods {
+		if !i.methods[m] {
+			c = append(c, m)
+		}
+	}
+	return c
+}
+
+// addMethodNotAllowedHandlers installs complementary handlers to the given router, for
+// all logjam defined routes.
+func addMethodNotAllowedHandlers(router *mux.Router) {
+	handlers := map[string]*hi{}
+	if router.MethodNotAllowedHandler == nil {
+		router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(405)
+		})
+	}
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		h := route.GetHandler()
+		if h == nil {
+			return nil
+		}
+		lh, isLogjamHandler := h.(handler)
+		if !isLogjamHandler {
+			return nil
+		}
+		t, err := route.GetPathTemplate()
+		if err != nil {
+			return nil
+		}
+		methods, err := route.GetMethods()
+		if err != nil {
+			methods = allMethods
+		}
+		if oldnh, found := handlers[t]; found {
+			oldnh.addMethods(methods)
+			return nil
+		}
+		x := hi{handler: lh, methods: map[string]bool{}}
+		x.addMethods(methods)
+		handlers[t] = &x
+		return nil
+	})
+	for t, hi := range handlers {
+		complement := hi.methodComplement()
+		if len(complement) > 0 {
+			nr := router.Path(t).Methods(complement...)
+			nr.Handler(handler{
+				action:                  hi.handler.action,
+				appendMethod:            hi.handler.appendMethod,
+				handler:                 router.MethodNotAllowedHandler,
+				methodNotAllowedHandler: true,
+			})
+		}
+	}
+}
+
 // SetupRoutes traverses all routes of the given router and replaces handlers which have
 // no logjam action name attached yet with a new handler that uses an action name
 // derived from the path template. It must be called after all routes have been set up
 // on the router.
-func SetupRoutes(r *mux.Router) {
-	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+func SetupRoutes(router *mux.Router) {
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		h := route.GetHandler()
 		if h == nil {
 			return nil
@@ -67,6 +141,7 @@ func SetupRoutes(r *mux.Router) {
 		})
 		return nil
 	})
+	addMethodNotAllowedHandlers(router)
 }
 
 func actionName(route *mux.Route) (string, bool) {
@@ -132,18 +207,25 @@ type routeInfo struct {
 // PrintRoutes prints the routes and their logjam action names.
 func PrintRoutes(r *mux.Router) {
 	routes := []routeInfo{}
+	methodNotAllowedRoutes := []routeInfo{}
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		h := route.GetHandler()
 		if h == nil {
 			return nil
 		}
 		if lh, isLogjamHandler := h.(handler); isLogjamHandler {
-			routes = append(routes, routeInfo{route: route, handler: lh})
+			if lh.methodNotAllowedHandler {
+				methodNotAllowedRoutes = append(methodNotAllowedRoutes, routeInfo{route: route, handler: lh})
+			} else {
+				routes = append(routes, routeInfo{route: route, handler: lh})
+			}
 		}
 		return nil
 	})
 	sortRoutes(routes)
-	printRoutes(routes)
+	printRoutes(routes, "====== routes ======")
+	sortRoutes(methodNotAllowedRoutes)
+	printRoutes(methodNotAllowedRoutes, " method not allowed ")
 }
 
 func sortRoutes(routes []routeInfo) {
@@ -154,9 +236,9 @@ func sortRoutes(routes []routeInfo) {
 	})
 }
 
-func printRoutes(routes []routeInfo) {
+func printRoutes(routes []routeInfo, title string) {
 	n := maxRouteLength(routes)
-	fmt.Printf("\n============================ logjam routes ================================\n")
+	fmt.Printf("\n============================%s================================\n", title)
 	for _, r := range routes {
 		methods, _ := r.route.GetMethods()
 		if len(methods) == 0 {
