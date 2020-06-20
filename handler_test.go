@@ -9,7 +9,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func Test_notFoundHandler(t *testing.T) {
+func TestNotFoundHandler(t *testing.T) {
 	agent := NewAgent(&Options{})
 	defer agent.Shutdown()
 
@@ -20,7 +20,7 @@ func Test_notFoundHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := agent.NewMiddleware(MiddlewareOptions{})(http.HandlerFunc(notFoundHandler))
+	handler := agent.NewMiddleware(MiddlewareOptions{})(http.HandlerFunc(NotFoundHandler))
 	handler.ServeHTTP(rr, r)
 
 	rs := rr.Result()
@@ -39,7 +39,7 @@ func Test_notFoundHandler(t *testing.T) {
 	})
 }
 
-func Test_methodNotAllowedHandler(t *testing.T) {
+func TestMethodNotAllowedHandler(t *testing.T) {
 	agent := NewAgent(&Options{})
 	defer agent.Shutdown()
 
@@ -50,7 +50,7 @@ func Test_methodNotAllowedHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := agent.NewMiddleware(MiddlewareOptions{})(http.HandlerFunc(methodNotAllowedHandler))
+	handler := agent.NewMiddleware(MiddlewareOptions{})(http.HandlerFunc(MethodNotAllowedHandler))
 	handler.ServeHTTP(rr, r)
 
 	rs := rr.Result()

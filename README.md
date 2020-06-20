@@ -49,8 +49,8 @@ endpoint.
 
 ```go
 r := mux.NewRouter()
-r.NotFoundHandler = http.HandlerFunc(logjam.notFoundHandler)
-r.MethodNotAllowedHandler = http.HandlerFunc(logjam.methodNotAllowedHandler)
+r.NotFoundHandler = http.HandlerFunc(logjam.NotFoundHandler)
+r.MethodNotAllowedHandler = http.HandlerFunc(logjam.MethodNotAllowedHandler)
 ...
 server := http.Server{
 	Handler: agent.NewHandler(r, logjam.MiddlewareOptions{BubblePanics: false})
