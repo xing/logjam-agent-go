@@ -29,6 +29,9 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) actionName(method string) string {
 	if h.appendMethod {
+		if h.methodNotAllowedHandler {
+			return h.action + "#methodNotAllowed"
+		}
 		return h.action + "#" + strings.ToLower(method)
 	}
 	return h.action
@@ -107,9 +110,13 @@ func addMethodNotAllowedHandlers(router *mux.Router) {
 		complement := hi.methodComplement()
 		if len(complement) > 0 {
 			nr := router.Path(t).Methods(complement...)
+			action := hi.handler.action
+			if !hi.handler.appendMethod {
+				action = strings.Split(action, "#")[0]
+			}
 			nr.Handler(handler{
-				action:                  hi.handler.action,
-				appendMethod:            hi.handler.appendMethod,
+				action:                  action,
+				appendMethod:            true,
 				handler:                 router.MethodNotAllowedHandler,
 				methodNotAllowedHandler: true,
 			})
