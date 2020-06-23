@@ -71,9 +71,10 @@ func (i *hi) methodComplement() []string {
 	return c
 }
 
-// addMethodNotAllowedHandlers installs complementary handlers to the given router, for
-// all logjam defined routes.
-func addMethodNotAllowedHandlers(router *mux.Router) {
+// AddMethodNotAllowedHandlers installs complementary handlers to the given router, for
+// all logjam defined routes. It needs to be called after all routes have been added to
+// the router.
+func AddMethodNotAllowedHandlers(router *mux.Router) {
 	handlers := map[string]*hi{}
 	if router.MethodNotAllowedHandler == nil {
 		router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +149,6 @@ func SetupRoutes(router *mux.Router) {
 		})
 		return nil
 	})
-	addMethodNotAllowedHandlers(router)
 }
 
 func actionName(route *mux.Route) (string, bool) {
