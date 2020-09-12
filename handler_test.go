@@ -10,7 +10,10 @@ import (
 )
 
 func TestNotFoundHandler(t *testing.T) {
-	agent := NewAgent(&Options{})
+	receiver := NewTestReceiver("inproc://not-found-handler-test")
+	defer receiver.Stop()
+
+	agent := NewAgent(&Options{Endpoints: "inproc://not-found-handler-test"})
 	defer agent.Shutdown()
 
 	rr := httptest.NewRecorder()
@@ -40,7 +43,10 @@ func TestNotFoundHandler(t *testing.T) {
 }
 
 func TestMethodNotAllowedHandler(t *testing.T) {
-	agent := NewAgent(&Options{})
+	receiver := NewTestReceiver("inproc://method-not-allowed-test")
+	defer receiver.Stop()
+
+	agent := NewAgent(&Options{Endpoints: "inproc://method-not-allowed-test"})
 	defer agent.Shutdown()
 
 	rr := httptest.NewRecorder()

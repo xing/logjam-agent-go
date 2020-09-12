@@ -15,18 +15,18 @@ func TestPackInfo(t *testing.T) {
 	Convey("Binary header", t, func() {
 		t := time.Unix(1000000000, 1000)
 
-		So(packInfo(t, math.MaxUint64), ShouldResemble, []byte{
+		So(packInfo(t, math.MaxUint64, 2), ShouldResemble, []byte{
 			202, 189, // tag
-			metaInfoCompressionMethod, // compression method
-			1,                         // version
-			0, 0, 0, 0,                // device
+			snappyCompression, // compression method
+			1,                 // version
+			0, 0, 0, 0,        // device
 			0, 0, 0, 232, 212, 165, 16, 0, // time
 			255, 255, 255, 255, 255, 255, 255, 255, // sequence
 		})
 
-		So(unpackInfo(packInfo(t, 123456789)), ShouldResemble, &metaInfo{
+		So(unpackInfo(packInfo(t, 123456789, 2)), ShouldResemble, &metaInfo{
 			Tag:               metaInfoTag,
-			CompressionMethod: metaInfoCompressionMethod,
+			CompressionMethod: snappyCompression,
 			Version:           metaInfoVersion,
 			DeviceNumber:      metaInfoDeviceNumber,
 			Timestamp:         uint64(t.UnixNano() / 1000000),

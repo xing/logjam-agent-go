@@ -15,7 +15,6 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/mux"
-	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -97,15 +96,8 @@ func TestMiddleware(t *testing.T) {
 		panic("panic")
 	})
 
-	socket, err := zmq4.NewSocket(zmq4.ROUTER)
-	if err != nil {
-		panic("could not create socket")
-	}
-	err = socket.Bind("inproc://middleware-test")
-	if err != nil {
-		panic("could not bind socket")
-	}
-	defer socket.Close()
+	receiver := NewTestReceiver("inproc://middleware-test")
+	defer receiver.Stop()
 
 	agentOptions := Options{
 		Endpoints:    "inproc://middleware-test",
@@ -148,14 +140,13 @@ func TestMiddleware(t *testing.T) {
 		So(res.Header.Get("X-Logjam-Caller-Id"), ShouldEqual, callerID)
 		So(res.Header.Get("Http-Authorization"), ShouldEqual, "")
 
-		msg, err := socket.RecvMessage(0)
-		So(err, ShouldBeNil)
-		So(msg, ShouldHaveLength, 5)
+		msg := <-receiver.Messages
+		So(msg, ShouldHaveLength, 4)
 
-		So(msg[1], ShouldEqual, agent.AppName+"-"+agent.EnvName)
-		So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
+		So(msg[0], ShouldEqual, agent.AppName+"-"+agent.EnvName)
+		So(msg[1], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
 
-		payload, err := snappy.Decode(nil, []byte(msg[3]))
+		payload, err := snappy.Decode(nil, []byte(msg[2]))
 		So(err, ShouldBeNil)
 
 		output := map[string]interface{}{}
@@ -299,14 +290,13 @@ func TestMiddleware(t *testing.T) {
 				uuid := requestParts[len(requestParts)-1]
 				So(res.Header.Get("X-Logjam-Action"), ShouldEqual, test.ActionName)
 
-				msg, err := socket.RecvMessage(0)
-				So(err, ShouldBeNil)
-				So(msg, ShouldHaveLength, 5)
+				msg := <-receiver.Messages
+				So(msg, ShouldHaveLength, 4)
 
-				So(msg[1], ShouldEqual, agent.AppName+"-"+agent.EnvName)
-				So(msg[2], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
+				So(msg[0], ShouldEqual, agent.AppName+"-"+agent.EnvName)
+				So(msg[1], ShouldEqual, "logs."+agentOptions.AppName+"."+agentOptions.EnvName)
 
-				payload, err := snappy.Decode(nil, []byte(msg[3]))
+				payload, err := snappy.Decode(nil, []byte(msg[2]))
 				So(err, ShouldBeNil)
 
 				output := map[string]interface{}{}

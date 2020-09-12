@@ -101,6 +101,7 @@ func (a *Agent) Shutdown() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if a.socket != nil {
+		a.sendPing()
 		a.socket.Close()
 	}
 }
@@ -192,18 +193,37 @@ func (a *Agent) sendMessage(msg []byte) {
 		a.setupSocket()
 	}
 	a.sequence++
-	meta := packInfo(time.Now(), a.sequence)
+	meta := packInfo(time.Now(), a.sequence, snappyCompression)
 	_, err := a.socket.SendMessage(a.stream, a.topic, msg, meta)
 	if err != nil {
 		a.Logger.Println(err)
 	}
 }
 
+func (a *Agent) sendPing() {
+	a.sequence++
+	meta := packInfo(time.Now(), a.sequence, noCompression)
+	_, err := a.socket.SendMessage("", "ping", a.stream, "{}", meta)
+	if err != nil {
+		a.Logger.Println("logjam agent: could not send ping:", err)
+		return
+	}
+	answer, err := a.socket.RecvMessage(0)
+	if err != nil {
+		a.Logger.Println("logjam agent: received incorrect answer to ping:", err)
+		return
+	}
+	if len(answer) < 2 && answer[1] != "200 OK" {
+		a.Logger.Println("logjam agent: received incorrect answer to ping:", answer)
+	}
+}
+
 const (
-	metaInfoTag               = 0xcabd
-	metaInfoDeviceNumber      = 0
-	metaInfoVersion           = 1
-	metaInfoCompressionMethod = 2 // snappy
+	metaInfoTag          = 0xcabd
+	metaInfoDeviceNumber = 0
+	metaInfoVersion      = 1
+	noCompression        = 0
+	snappyCompression    = 2
 )
 
 type metaInfo struct {
@@ -215,10 +235,10 @@ type metaInfo struct {
 	Sequence          uint64
 }
 
-func packInfo(t time.Time, i uint64) []byte {
+func packInfo(t time.Time, i uint64, compressionMethod uint8) []byte {
 	data := make([]byte, 24)
 	binary.BigEndian.PutUint16(data, metaInfoTag)
-	data[2] = metaInfoCompressionMethod
+	data[2] = compressionMethod
 	data[3] = metaInfoVersion
 	binary.BigEndian.PutUint32(data[4:8], metaInfoDeviceNumber)
 	binary.BigEndian.PutUint64(data[8:16], uint64(t.UnixNano()/1000000))

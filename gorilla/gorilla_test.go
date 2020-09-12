@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/mux"
-	"github.com/pebbe/zmq4"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/xing/logjam-agent-go"
 )
@@ -41,15 +40,8 @@ func TestGorillaNameExtraction(t *testing.T) {
 	router.Path("/allmethods").HandlerFunc(somebody)
 	router.Path("/simple").Methods("GET").HandlerFunc(somebody)
 
-	socket, err := zmq4.NewSocket(zmq4.ROUTER)
-	if err != nil {
-		panic("cannot create socket for testing")
-	}
-	err = socket.Bind("inproc://gorilla-test")
-	if err != nil {
-		panic("cannot bind socket for testing")
-	}
-	defer socket.Close()
+	receiver := logjam.NewTestReceiver("inproc://gorilla-test")
+	defer receiver.Stop()
 
 	agentOptions := logjam.Options{
 		Endpoints: "inproc://gorilla-test",
@@ -66,16 +58,16 @@ func TestGorillaNameExtraction(t *testing.T) {
 
 	performAndCheck := func(method string, path string, expectedResonseCode int, expectedActionName string) {
 		req, err := http.NewRequest(method, server.URL+path, nil)
-		res, err := server.Client().Do(req)
+		So(err, ShouldBeNil)
 
+		res, err := server.Client().Do(req)
 		So(err, ShouldBeNil)
 		So(res.StatusCode, ShouldEqual, expectedResonseCode)
 
-		msg, err := socket.RecvMessage(0)
-		So(err, ShouldBeNil)
-		So(msg, ShouldHaveLength, 5)
+		msg := <-receiver.Messages
+		So(msg, ShouldHaveLength, 4)
 
-		payload, err := snappy.Decode(nil, []byte(msg[3]))
+		payload, err := snappy.Decode(nil, []byte(msg[2]))
 		So(err, ShouldBeNil)
 
 		output := map[string]interface{}{}
