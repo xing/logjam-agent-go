@@ -109,5 +109,72 @@ gorilla.ActionName(router.Path("/users/{user_id}/friends").Methods("GET").Handle
 Make sure to have the route fully configured before calling `gorilla.ActionName`.
 
 
+### Using the agent for non web requests
+
+The agent's middleware takes care of all the internal plumbing for web requests. If you
+have some other request handling mechanism, like a message processor for example, you have
+to manage that yourself.
+
+You will need to create a request, then store the request in a context to be used by the
+logging mechanism and sending call headers to other services, then perform your business
+logic and then finally make sure to send the request information to logjam.
+
+```go
+// Let's assume that the variable agent points to a logjam.Agent and logger is
+// an instance of a logjam.Logger.
+
+func myHandler(ctx context.Context) {
+    // create a new request
+    request := agent.NewRequest("myHandler#call")
+    // create a new context containing the request, so the logjam logger can access it
+    ctx := request.NewContext(ctx)
+    code := int(200)
+    // make sure to send the request at the end
+    defer func() {
+        // make we send information to logjam in case the app panics
+        if r := recover(); r != nil {
+            code = 500
+            request.Finish(code)
+            // optionally reraise the original panic:
+            // panic(r)
+        }
+        request.Finish(code)
+    }()
+    ...
+    // your logic belongs here
+    ...
+    if sucess {
+        logger.Info(ctx, "200 OK")
+        return
+    }
+    code = 500
+    logger.Error(ctx, "500 Internal Server Error")
+}
+```
+
+Obviously one could abstract this logic into a helper function, but a.t.m. we think this
+is best left to the application programmer, until we have an agreement on the desired API
+of such a helper.
+
+
+### Passing call headers to other logjam instrumented services
+
+Logjam can provide caller relationship information between a collection of services, which
+helps in debugging and understanding your overall system. It can be considered a form of
+distributed tracing, restricted to HTTP based service relationships. The agent provides a
+helper function to simplify the task of passing the required information to the called
+service.
+
+```go
+// Call some REST service passing the required logjam headers assuming the variable client
+// refers to a http.Client, agent to the logjam agent and ctx refers to the http request
+// context of the currently executing request handler which has been augmented by the logjam agent.
+
+req, err := http.NewRequest("GET", "http://example.com", nil)
+agent.SetCallHeaders(ctx, req)
+resp, err := client.Do(req)
+```
+
+
 ## How to contribute?
 Please fork the repository and create a pull-request for us.
