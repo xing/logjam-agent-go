@@ -146,8 +146,6 @@ func (r *Request) AddCount(key string, value int64) {
 
 // Count behaves like AddCount with a value of 1
 func (r *Request) Count(key string) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
 	r.AddCount(key, 1)
 }
 
