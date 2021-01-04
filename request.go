@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -195,16 +196,21 @@ func (r *Request) durationCorrectionFactor(totalTime float64) float64 {
 }
 
 func (r *Request) logjamPayload(code int) map[string]interface{} {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+
 	totalTime := r.totalTime()
 	msg := map[string]interface{}{
-		"action":     r.action,
-		"code":       code,
-		"process_id": os.Getpid(),
-		"request_id": r.uuid,
-		"severity":   r.severity,
-		"started_at": r.startTime.Format(timeFormat),
-		"started_ms": r.startTime.UnixNano() / 1000000,
-		"total_time": totalTime,
+		"action":             r.action,
+		"code":               code,
+		"process_id":         os.Getpid(),
+		"request_id":         r.uuid,
+		"severity":           r.severity,
+		"started_at":         r.startTime.Format(timeFormat),
+		"started_ms":         r.startTime.UnixNano() / 1000000,
+		"total_time":         totalTime,
+		"live_data_set_size": ms.HeapAlloc,
+		"heap_size":          ms.HeapSys / 1000000,
 	}
 	if len(r.logLines) > 0 {
 		msg["lines"] = r.logLines
