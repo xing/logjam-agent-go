@@ -210,7 +210,7 @@ func (r *Request) logjamPayload(code int) map[string]interface{} {
 		"started_ms":         r.startTime.UnixNano() / 1000000,
 		"total_time":         totalTime,
 		"live_data_set_size": ms.HeapAlloc,
-		"heap_size":          ms.HeapSys / 1000000,
+		"heap_size":          ms.HeapSys,
 	}
 	if len(r.logLines) > 0 {
 		msg["lines"] = r.logLines
