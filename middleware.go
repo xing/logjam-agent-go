@@ -45,6 +45,9 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logjamRequest.callerID = r.Header.Get("X-Logjam-Caller-Id")
 	logjamRequest.callerAction = r.Header.Get("X-Logjam-Action")
+	if traceID := r.Header.Get("X-Logjam-Trace-Id"); traceID != "" {
+		logjamRequest.traceID = traceID
+	}
 
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

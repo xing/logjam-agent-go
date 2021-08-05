@@ -123,10 +123,12 @@ func TestMiddleware(t *testing.T) {
 		defer server.Close()
 
 		callerID := "27ce93ab-05e7-48b8-a80c-6e076c32b75a"
+		traceID := "2ac5d40fd8f54c3d9def295f1adac47d"
 		actionName := "Rest::App::Vendor::V1::Users::Id#get"
 
 		req, err := http.NewRequest("GET", server.URL+"/rest/app/vendor/v1/users/123", nil)
 		req.Header.Set("X-Logjam-Caller-Id", callerID)
+		req.Header.Set("X-Logjam-Trace-Id", traceID)
 		req.Header.Set("Authorization", "4ec04124-bd41-49e2-9e30-5b189f5ca5f2")
 		query := req.URL.Query()
 		query.Set("single", "value")
@@ -166,6 +168,7 @@ func TestMiddleware(t *testing.T) {
 		So(output["ip"], ShouldEqual, "127.0.0.XXX")
 		So(output["process_id"].(float64), ShouldNotEqual, 0)
 		So(output["request_id"], ShouldEqual, uuid)
+		So(output["trace_id"], ShouldEqual, traceID)
 		So(output["started_at"], shouldHaveTimeFormat, timeFormat)
 		startedAt, err := time.ParseInLocation(timeFormat, output["started_at"].(string), now.Location())
 		So(err, ShouldBeNil)
@@ -200,6 +203,7 @@ func TestMiddleware(t *testing.T) {
 			"Accept-Encoding":    "gzip",
 			"User-Agent":         "Go-http-client/1.1",
 			"X-Logjam-Caller-Id": callerID,
+			"X-Logjam-Trace-Id":  traceID,
 		})
 
 		So(requestInfo["query_parameters"], ShouldResemble, map[string]interface{}{

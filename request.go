@@ -23,6 +23,7 @@ type Request struct {
 	id                 string                   // Request id as sent to called applications (app-env-uuid).
 	callerID           string                   // Request id of the caller (if any).
 	callerAction       string                   // Action name of the caller (if any).
+	traceID            string                   // Trace id for this request.
 	startTime          time.Time                // Start time of this request.
 	endTime            time.Time                // Completion time of this request.
 	durations          map[string]time.Duration // Time metrics.
@@ -51,6 +52,7 @@ func (a *Agent) NewRequest(action string) *Request {
 	}
 	r.startTime = time.Now()
 	r.uuid = generateUUID()
+	r.traceID = r.uuid
 	r.id = a.AppName + "-" + a.EnvName + "-" + r.uuid
 	return &r
 }
@@ -201,6 +203,7 @@ func (r *Request) logjamPayload(code int) map[string]interface{} {
 		"code":       code,
 		"process_id": os.Getpid(),
 		"request_id": r.uuid,
+		"trace_id":   r.traceID,
 		"severity":   r.severity,
 		"started_at": r.startTime.Format(timeFormat),
 		"started_ms": r.startTime.UnixNano() / 1000000,
