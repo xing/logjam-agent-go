@@ -20,7 +20,7 @@ jobs:
       - name: Setup Go environment
         uses: actions/setup-go@v2
         with:
-          version: ${{ matrix.go-version }}
+          version: ${{ matrix.version }}
 
      - name: Test
        run: make test
