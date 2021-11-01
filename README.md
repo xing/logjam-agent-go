@@ -1,7 +1,7 @@
 # Logjam client for Go
 
 [![GoDoc](https://godoc.org/github.com/xing/logjam-agent-go?status.svg)](https://godoc.org/github.com/xing/logjam-agent-go)
-[![Travis](https://travis-ci.org/xing/logjam-agent-go.svg?branch=master)](https://travis-ci.org/github/xing/logjam-agent-go)
+[![build](https://github.com/xing/logjam-agent-go/actions/workflows/build.yml/badge.svg)](https://github.com/xing/logjam-agent-go/actions/workflows/build.yml)
 
 This package provides integration with the [Logjam](https://github.com/skaes/logjam_core)
 monitoring tool for Go web-applications.
