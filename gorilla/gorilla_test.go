@@ -84,16 +84,11 @@ func TestGorillaNameExtraction(t *testing.T) {
 		So(output["action"], ShouldEqual, expectedActionName)
 	}
 
-	Convey("setting up action name extraction using gorilla", t, func() {
-
-		SetupRoutes(router)
-		PrintRoutes(router)
-
-	})
-
 	Convey("defining action names using gorilla", t, func() {
 
 		SetupRoutes(router)
+		AddMethodNotAllowedHandlers(router)
+		PrintRoutes(router)
 
 		performAndCheck("GET", "/rest/users/123", 200, "Rest::Users#show")
 		performAndCheck("DELETE", "/rest/users/123", 200, "Rest::Users#destroy")
@@ -103,5 +98,6 @@ func TestGorillaNameExtraction(t *testing.T) {
 		performAndCheck("GET", "/simple", 200, "Simple#get")
 		performAndCheck("POST", "/allmethods", 200, "Allmethods#post")
 
+		performAndCheck("HEAD", "/rest/users/123", 405, "Rest::Users#methodNotAllowed")
 	})
 }
