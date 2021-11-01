@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        version: [1.16.9, 1.17.2]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.version }}
+
+      - name: Install dependencies
+        run: sudo apt-get install libzmq5-dev
+
+      - name: Test
+        run: make test
