@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        version: [1.16.9, 1.17.2]
+        go-version: [1.16.9, 1.17.2]
 
     steps:
       - uses: actions/checkout@v2
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Go environment
         uses: actions/setup-go@v2
         with:
-          version: ${{ matrix.version }}
+          go-version: ${{ matrix.version }}
 
       - name: Install dependencies
         run: sudo apt-get install libzmq5-dev
