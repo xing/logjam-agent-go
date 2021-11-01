@@ -22,5 +22,8 @@ jobs:
         with:
           version: ${{ matrix.version }}
 
+      - name: Install dependencies
+        run: sudo apt-get install libzmq5-dev
+
       - name: Test
         run: make test
